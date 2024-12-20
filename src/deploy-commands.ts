@@ -7,6 +7,7 @@ import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
+import * as roux from './commands/harcelement/roux';
 
 const commands = [
     balance.data,
@@ -15,7 +16,8 @@ const commands = [
     shop.data,
     history.data,
     initusers.data,
-    vendesleep.data
+    vendesleep.data,
+    roux.data
 ].map(command => command.toJSON());
 
 const rest = new REST().setToken(config.token);

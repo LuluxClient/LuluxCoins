@@ -3,6 +3,7 @@ import { config } from './config';
 import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
 import { statusManager } from './database/statusManager';
+import { harassmentManager } from './managers/harassmentManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
 import * as luluxcoins from './commands/luluxcoins';
@@ -40,6 +41,7 @@ client.once(Events.ClientReady, async () => {
     await db.init();
     await backupManager.init();
     await statusManager.init();
+    harassmentManager.setClient(client);
     backupManager.scheduleBackups();
 });
 

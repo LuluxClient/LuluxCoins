@@ -42,7 +42,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Vérifier que c'est le bon utilisateur
     if (interaction.user.id !== '252454259252002826') {
         await interaction.reply({
-            content: 'Tu n\'as pas le droit d\'utiliser cette commande.',
+            content: 'Nique ta mère, t\'as pas les perms.',
+            ephemeral: true
+        });
+        return;
+    }
+
+    if (!interaction.guild) {
+        await interaction.reply({
+            content: 'Cette commande ne peut être utilisée que dans un serveur.',
             ephemeral: true
         });
         return;

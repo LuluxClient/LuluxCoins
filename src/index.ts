@@ -11,6 +11,7 @@ import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
+import * as roux from './commands/harcelement/roux';
 
 const client = new Client({
     intents: [
@@ -23,7 +24,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux].forEach(command => {
     commands.set(command.data.name, command);
 });
 

@@ -43,6 +43,7 @@ client.once(Events.ClientReady, async () => {
     await backupManager.init();
     await statusManager.init();
     harassmentManager.setClient(client);
+    await harassmentManager.init();
     backupManager.scheduleBackups();
 });
 

@@ -3,4 +3,5 @@ dist/
 .env
 backups/
 database.json
-status.json 
+status.json
+harassment.json 

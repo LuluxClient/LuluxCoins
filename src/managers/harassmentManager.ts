@@ -22,7 +22,7 @@ class HarassmentManager {
             active: true,
             targetId,
             message,
-            intervalId: setInterval(() => this.sendMessage(), 60000) // Toutes les minutes
+            intervalId: setInterval(() => this.sendMessage(), 3600000) // Toutes les heures (3600000 ms = 1 heure)
         };
 
         // Envoyer le premier message immédiatement

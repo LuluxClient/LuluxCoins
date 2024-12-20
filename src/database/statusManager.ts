@@ -57,7 +57,12 @@ export class StatusManager {
             const nextReset = new Date(now);
             nextReset.setHours(23, 59, 0, 0);
             
-            const timeUntilReset = nextReset.getTime() - now.getTime();
+            let timeUntilReset = nextReset.getTime() - now.getTime();
+            if (timeUntilReset < 1000) {
+                nextReset.setDate(nextReset.getDate() + 1);
+                timeUntilReset = nextReset.getTime() - now.getTime();
+            }
+            
             setTimeout(() => {
                 this.resetDailyStats();
                 scheduleDailyReset();
@@ -164,6 +169,15 @@ export class StatusManager {
     private async resetDailyStats() {
         const user = this.data.users.find(u => u.userId === this.targetUserId);
         if (user) {
+            const oldStats = {
+                dailyOnline: user.dailyStats.online,
+                dailyOffline: user.dailyStats.offline
+            };
+            
+            if (oldStats.dailyOnline === 0 && oldStats.dailyOffline === 0) {
+                return;
+            }
+            
             await this.sendStatsWebhook(user, 'Daily Reset');
             user.dailyStats = { online: 0, offline: 0, lastReset: Date.now() };
             await this.save();

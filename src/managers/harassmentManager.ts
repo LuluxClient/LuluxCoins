@@ -55,7 +55,7 @@ class HarassmentManager {
 
         const embed = new EmbedBuilder()
             .setColor('#FF0000')
-            .setTitle('🔔 Rouxcèlement')
+            .setTitle('🔔 rouxcèlement 🔔')
             .setDescription(`<@${this.state.targetId}> ${this.state.message}`)
             .setTimestamp();
 

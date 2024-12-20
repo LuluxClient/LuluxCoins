@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { WebhookClient } from 'discord.js';
+import { WebhookClient, EmbedBuilder } from 'discord.js';
 import { UserStatus, StatusDatabase } from '../types/statusTypes';
 
 export class StatusManager {
@@ -94,17 +94,37 @@ export class StatusManager {
         const weeklyOnline = this.formatDuration(user.weeklyStats.online);
         const weeklyOffline = this.formatDuration(user.weeklyStats.offline);
 
+        const embed = new EmbedBuilder()
+            .setColor(user.currentStatus === 'online' ? '#00FF00' : '#FF0000')
+            .setTitle('🛏️ Stats de Sommeil de Vendetta')
+            .setDescription(
+                `**Status Actuel:** ${user.currentStatus === 'online' ? '🟢 En ligne' : '⚫ Hors ligne'}\n\n` +
+                `📊 **Stats Journalières**\n` +
+                `En ligne: \`${dailyOnline}\`\n` +
+                `Hors ligne: \`${dailyOffline}\`\n\n` +
+                `📈 **Stats Hebdomadaires**\n` +
+                `En ligne: \`${weeklyOnline}\`\n` +
+                `Hors ligne: \`${weeklyOffline}\``
+            )
+            .setFooter({ text: `Raison: ${this.translateReason(reason)}` })
+            .setTimestamp();
+
         await this.webhook.send({
-            content: `**Status Update for ${user.username}**\n` +
-                    `Reason: ${reason}\n\n` +
-                    `**Current Status:** ${user.currentStatus}\n\n` +
-                    `**Daily Stats:**\n` +
-                    `Online: ${dailyOnline}\n` +
-                    `Offline: ${dailyOffline}\n\n` +
-                    `**Weekly Stats:**\n` +
-                    `Online: ${weeklyOnline}\n` +
-                    `Offline: ${weeklyOffline}`
+            embeds: [embed]
         });
+    }
+
+    private translateReason(reason: string): string {
+        switch (reason) {
+            case 'Status Change':
+                return 'Changement de statut';
+            case 'Daily Reset':
+                return 'Réinitialisation journalière';
+            case 'Weekly Reset':
+                return 'Réinitialisation hebdomadaire';
+            default:
+                return reason;
+        }
     }
 
     async handleStatusChange(userId: string, username: string, newStatus: 'online' | 'offline') {

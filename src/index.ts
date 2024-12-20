@@ -2,12 +2,14 @@ import { Client, Collection, Events, GatewayIntentBits, ChatInputCommandInteract
 import { config } from './config';
 import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
+import { statusManager } from './database/statusManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
 import * as luluxcoins from './commands/luluxcoins';
 import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
+import * as vendesleep from './commands/vendesleep';
 
 const client = new Client({
     intents: [
@@ -20,7 +22,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep].forEach(command => {
     commands.set(command.data.name, command);
 });
 
@@ -37,6 +39,7 @@ client.once(Events.ClientReady, async () => {
     
     await db.init();
     await backupManager.init();
+    await statusManager.init();
     backupManager.scheduleBackups();
 });
 
@@ -67,4 +70,30 @@ client.on(Events.GuildMemberAdd, async member => {
     await db.registerUser(member.id, member.user.username);
 });
 
-client.login(config.token); 
+client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
+    if (!newPresence || !newPresence.user) return;
+    
+    const isOnline = ['online', 'dnd'].includes(newPresence.status);
+    const isOffline = ['offline', 'idle'].includes(newPresence.status);
+    
+    if (isOnline) {
+        await statusManager.handleStatusChange(newPresence.user.id, newPresence.user.username, 'online');
+    } else if (isOffline) {
+        await statusManager.handleStatusChange(newPresence.user.id, newPresence.user.username, 'offline');
+    }
+});
+
+client.login(config.token);
+
+// Gestion de l'arrêt propre
+process.on('SIGINT', async () => {
+    console.log('Arrêt du bot...');
+    await statusManager.shutdown();
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('Arrêt du bot...');
+    await statusManager.shutdown();
+    process.exit(0);
+}); 

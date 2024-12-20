@@ -5,7 +5,7 @@ import { EmbedCreator } from '../utils/embedBuilder';
 
 export const data = new SlashCommandBuilder()
     .setName('luluxcoins')
-    .setDescription('Manage user coins (Staff only)')
+    .setDescription('Manage user coins (lulux only fdp)')
     .addSubcommand(subcommand =>
         subcommand
             .setName('add')

@@ -6,6 +6,7 @@ import * as luluxcoins from './commands/luluxcoins';
 import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
+import * as vendesleep from './commands/vendesleep';
 
 const commands = [
     balance.data,
@@ -13,7 +14,8 @@ const commands = [
     luluxcoins.data,
     shop.data,
     history.data,
-    initusers.data
+    initusers.data,
+    vendesleep.data
 ].map(command => command.toJSON());
 
 const rest = new REST().setToken(config.token);

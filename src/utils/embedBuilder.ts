@@ -7,7 +7,7 @@ export class EmbedCreator {
         return new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle(`Balance de ${user.username}`)
-            .setDescription(`**Solde:** ${config.luluxcoinsEmoji} ${user.balance.toLocaleString()} coins`)
+            .setDescription(`**Solde:** ${user.balance.toLocaleString()} ${config.luluxcoinsEmoji}`)
             .setTimestamp();
     }
 
@@ -18,11 +18,11 @@ export class EmbedCreator {
 
         return new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🏆 Classement Luluxcoins')
+            .setTitle('🏆 Classement LuluxCoins')
             .setDescription(
                 top10
                     .map((user, index) => 
-                        `${index + 1}. ${user.username} - ${config.luluxcoinsEmoji} ${user.balance.toLocaleString()} coins`)
+                        `${index + 1}. ${user.username} - ${config.luluxcoinsEmoji} ${user.balance.toLocaleString()} LuluxCoins`)
                     .join('\n')
             )
             .setTimestamp();
@@ -35,7 +35,7 @@ export class EmbedCreator {
             .setDescription(
                 items
                     .map(item => 
-                        `${item.emoji} **${item.name}** - ${config.luluxcoinsEmoji} ${item.price.toLocaleString()} coins\n` +
+                        `${item.emoji} **${item.name}** - ${config.luluxcoinsEmoji} ${item.price.toLocaleString()} LuluxCoins\n` +
                         `┗ ${item.description}\n`)
                     .join('\n')
             )

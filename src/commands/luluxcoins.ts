@@ -62,13 +62,11 @@ export const data = new SlashCommandBuilder()
     );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    // Check if user has staff role
-    const member = await interaction.guild?.members.fetch(interaction.user.id);
-    const hasStaffRole = member?.roles.cache.some(role => config.staffRoleIds.includes(role.id));
+    const isOwner = interaction.user.id === config.ownerID;
 
-    if (!hasStaffRole) {
+    if (!isOwner) {
         await interaction.reply({
-            content: 'You do not have permission to use this command!',
+            content: 'Nique ta mère',
             ephemeral: true
         });
         return;

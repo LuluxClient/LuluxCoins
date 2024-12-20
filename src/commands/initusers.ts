@@ -7,10 +7,9 @@ export const data = new SlashCommandBuilder()
     .setDescription('Initialize all server members in the database (Staff only)');
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    const member = await interaction.guild?.members.fetch(interaction.user.id);
-    const hasStaffRole = member?.roles.cache.some(role => config.staffRoleIds.includes(role.id));
+    const isOwner = interaction.user.id === config.ownerID;
 
-    if (!hasStaffRole) {
+    if (!isOwner) {
         await interaction.reply({
             content: 'Nique ta mère',
             ephemeral: true

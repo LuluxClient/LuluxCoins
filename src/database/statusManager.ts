@@ -208,8 +208,29 @@ export class StatusManager {
     private async resetWeeklyStats() {
         const user = this.data.users.find(u => u.userId === this.targetUserId);
         if (user) {
+            const now = Date.now();
+            if (now - user.weeklyStats.lastReset < 3600000) {
+                return;
+            }
+    
+            const oldStats = {
+                weeklyOnline: user.weeklyStats.online,
+                weeklyOffline: user.weeklyStats.offline
+            };
+    
+            if (oldStats.weeklyOnline === 0 && oldStats.weeklyOffline === 0) {
+                return;
+            }
+            const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
+            if (user.currentStatus === 'online') {
+                user.weeklyStats.online += timeDiff;
+            } else {
+                user.weeklyStats.offline += timeDiff;
+            }
+            user.lastStatusChange = now;
+    
             await this.sendStatsWebhook(user, 'Weekly Reset');
-            user.weeklyStats = { online: 0, offline: 0, lastReset: Date.now() };
+            user.weeklyStats = { online: 0, offline: 0, lastReset: now };
             await this.save();
         }
     }
@@ -221,7 +242,7 @@ export class StatusManager {
         const now = Date.now();
         const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
 
-        // Mettre à jour les stats avec le temps écoulé depuis le dernier changement
+        // Mettre à jour les stats avec le temps écoulé depuis le dernier changement pd
         const currentStats = {
             currentStatus: user.currentStatus,
             dailyOnline: this.formatDuration(

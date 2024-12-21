@@ -185,6 +185,11 @@ export class StatusManager {
     private async resetDailyStats() {
         const user = this.data.users.find(u => u.userId === this.targetUserId);
         if (user) {
+            const now = Date.now();
+            if (now - user.dailyStats.lastReset < 3600000) {
+                return; 
+            }
+            
             const oldStats = {
                 dailyOnline: user.dailyStats.online,
                 dailyOffline: user.dailyStats.offline

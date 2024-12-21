@@ -64,6 +64,30 @@ export class StatusManager {
             }
             
             setTimeout(() => {
+                const user = this.data.users.find(u => u.userId === this.targetUserId);
+                if (user) {
+                    const oldStats = {
+                        dailyOnline: user.dailyStats.online,
+                        dailyOffline: user.dailyStats.offline
+                    };
+                    
+                    if (oldStats.dailyOnline === 0 && oldStats.dailyOffline === 0) {
+                        scheduleDailyReset();
+                        return;
+                    }
+
+                    const now = Date.now();
+                    const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
+                    
+                    // Mettre à jour les stats avec le temps écoulé avant le reset
+                    if (user.currentStatus === 'online') {
+                        user.dailyStats.online += timeDiff;
+                    } else {
+                        user.dailyStats.offline += timeDiff;
+                    }
+                    user.lastStatusChange = now;
+                }
+                
                 this.resetDailyStats();
                 scheduleDailyReset();
             }, timeUntilReset);
@@ -133,37 +157,29 @@ export class StatusManager {
     }
 
     async handleStatusChange(userId: string, username: string, newStatus: 'online' | 'offline') {
-        if (userId !== this.targetUserId) return;
+        const user = this.data.users.find(u => u.userId === userId);
+        if (!user) return;
 
-        const now = Date.now();
-        let user = this.data.users.find(u => u.userId === userId);
-
-        if (!user) {
-            user = {
-                userId,
-                username,
-                currentStatus: newStatus,
-                lastStatusChange: now,
-                dailyStats: { online: 0, offline: 0, lastReset: now },
-                weeklyStats: { online: 0, offline: 0, lastReset: now }
-            };
-            this.data.users.push(user);
-        } else {
-            const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
-            if (user.currentStatus === 'online') {
-                user.dailyStats.online += timeDiff;
-                user.weeklyStats.online += timeDiff;
-            } else {
-                user.dailyStats.offline += timeDiff;
-                user.weeklyStats.offline += timeDiff;
-            }
-
-            user.currentStatus = newStatus;
-            user.lastStatusChange = now;
+        if (user.currentStatus === newStatus) {
+            return;
         }
 
+        const now = Date.now();
+        const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
+
+        if (user.currentStatus === 'online') {
+            user.dailyStats.online += timeDiff;
+            user.weeklyStats.online += timeDiff;
+        } else {
+            user.dailyStats.offline += timeDiff;
+            user.weeklyStats.offline += timeDiff;
+        }
+
+        user.currentStatus = newStatus;
+        user.lastStatusChange = now;
+
         await this.save();
-        await this.sendStatsWebhook(user, 'Status Change');
+        await this.sendStatsWebhook(user, 'Changement de statut');
     }
 
     private async resetDailyStats() {

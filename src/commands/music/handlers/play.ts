@@ -55,9 +55,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             format: 'bestaudio',
             geoBypass: true,
             geoBypassCountry: 'FR',
-            addHeader: [
-                'User-Agent:com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip'
-            ]
+            cookies: '/root/.mozilla/firefox/*.default-release/cookies.sqlite'
         }, {
             cwd: process.cwd(),
         }) as VideoInfo;

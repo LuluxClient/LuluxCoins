@@ -2,6 +2,8 @@ import { ChatInputCommandInteraction, GuildMember, EmbedBuilder, PermissionFlags
 import { musicManager } from '../../../managers/musicManager';
 import youtubeDl from 'youtube-dl-exec';
 import { joinVoiceChannel } from '@discordjs/voice';
+import { execSync } from 'child_process';
+import path from 'path';
 
 interface VideoInfo {
     title: string;
@@ -60,15 +62,27 @@ export async function play(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
     try {
+        // Mettre à jour yt-dlp avant chaque utilisation
+        const ytDlpPath = path.join(process.cwd(), 'node_modules/youtube-dl-exec/bin/yt-dlp');
+        try {
+            execSync(`${ytDlpPath} -U`, { stdio: 'ignore' });
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour de yt-dlp:', error);
+        }
+
         const info = await youtubeDl(url, {
             dumpSingleJson: true,
             noWarnings: true,
             preferFreeFormats: true,
             skipDownload: true,
             format: 'bestaudio',
-            geoBypass: true,
-            geoBypassCountry: 'FR',
-            youtubeSkipDashManifest: true,
+            addHeader: [
+                'referer:youtube.com',
+                'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+            ],
+            noCheckCertificates: true,
+            // noCallHome: true,
+            preferInsecure: true
         }) as VideoInfo;
 
         if (!musicManager.getCurrentVoiceChannel()) {

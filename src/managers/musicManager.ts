@@ -210,15 +210,20 @@ export class MusicManager {
         try {
             const output = await youtubeDl(this.currentItem.url, {
                 format: 'bestaudio',
-                getUrl: true
+                getUrl: true,
+                cookies: '/root/cookies.txt'
             });
+
+            if (!output) {
+                throw new Error('Could not get audio URL');
+            }
 
             const audioUrl = output.toString().trim();
             const resource = createAudioResource(audioUrl);
             this.audioPlayer.play(resource);
         } catch (error) {
             console.error('Erreur de lecture:', error);
-            this.sendMessage('❌ Impossible de lire cette musique. Passage  la suivante...');
+            this.sendMessage('❌ Impossible de lire cette musique. Passage à la suivante...');
             this.playNext();
         }
     }

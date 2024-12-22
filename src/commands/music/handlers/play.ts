@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, GuildMember, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
 import youtubeDl from 'youtube-dl-exec';
 import { joinVoiceChannel } from '@discordjs/voice';
@@ -10,11 +10,11 @@ interface VideoInfo {
 
 export async function play(interaction: ChatInputCommandInteraction) {
     const member = interaction.member as GuildMember;
-    
+
     console.log(`[DEBUG] Checking ban status for user ${member.id}`);
     const isBanned = musicManager.isUserBanned(member.id);
     console.log(`[DEBUG] User ${member.id} ban status:`, isBanned);
-    
+
     if (isBanned) {
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
@@ -24,7 +24,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
 
         return await interaction.reply({
             embeds: [embed],
-            ephemeral: true
+            ephemeral: true,
         });
     }
 
@@ -34,14 +34,27 @@ export async function play(interaction: ChatInputCommandInteraction) {
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
             .setTitle('❌ Erreur')
-            .setDescription('Co toi dans un voc pour mettre de la musique fdp')
+            .setDescription('Connecte-toi à un canal vocal pour jouer de la musique.')
             .setTimestamp();
 
         return await interaction.reply({
             embeds: [embed],
-            ephemeral: true
+            ephemeral: true,
         });
     }
+
+    if (!voiceChannel.permissionsFor(interaction.client.user!)?.has(PermissionFlagsBits.Connect) ||
+    !voiceChannel.permissionsFor(interaction.client.user!)?.has(PermissionFlagsBits.Speak)) {
+    return await interaction.reply({
+        embeds: [
+            new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('❌ Erreur')
+                .setDescription('Je n\'ai pas les permissions nécessaires pour rejoindre et parler dans ce canal vocal.')
+        ],
+        ephemeral: true,
+    });
+}
 
     const url = interaction.options.getString('url', true);
     await interaction.deferReply({ ephemeral: true });
@@ -56,8 +69,6 @@ export async function play(interaction: ChatInputCommandInteraction) {
             geoBypass: true,
             geoBypassCountry: 'FR',
             youtubeSkipDashManifest: true,
-        }, {
-            cwd: process.cwd(),
         }) as VideoInfo;
 
         if (!musicManager.getCurrentVoiceChannel()) {
@@ -65,6 +76,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 channelId: voiceChannel.id,
                 guildId: interaction.guildId!,
                 adapterCreator: interaction.guild!.voiceAdapterCreator,
+                selfDeaf: true,
             });
             musicManager.setConnection(connection);
         }
@@ -75,8 +87,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
             duration: formatDuration(info.duration),
             requestedBy: {
                 id: interaction.user.id,
-                username: interaction.user.username
-            }
+                username: interaction.user.username,
+            },
         });
 
         const embed = new EmbedBuilder()
@@ -85,18 +97,26 @@ export async function play(interaction: ChatInputCommandInteraction) {
             .setDescription(`[${info.title}](${url})`)
             .addFields(
                 { name: '⏱️ Durée', value: formatDuration(info.duration), inline: true },
-                { name: '👤 Demandé par', value: interaction.user.username, inline: true }
+                { name: '👤 Demandé par', value: interaction.user.username, inline: true },
             )
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Erreur lors de la lecture:', error);
+
+        let errorMsg = 'Une erreur est survenue lors de la lecture de la vidéo.';
+        if (error.message.includes('Video unavailable')) {
+            errorMsg = 'La vidéo n\'est pas disponible. Vérifie l\'URL.';
+        } else if (error.message.includes('age-restricted')) {
+            errorMsg = 'La vidéo est restreinte par l\'âge.';
+        }
+
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
             .setTitle('❌ Erreur')
-            .setDescription('Une erreur est survenue lors de la lecture de la vidéo.')
+            .setDescription(errorMsg)
             .setFooter({ text: 'Vérifie ton URL ou réessaie plus tard' })
             .setTimestamp();
 
@@ -108,4 +128,4 @@ function formatDuration(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-} 
+}

@@ -9,9 +9,13 @@
     "deploy": "ts-node src/deploy-commands.ts"
   },
   "dependencies": {
+    "@discordjs/voice": "^0.18.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.7",
-    "node-cron": "^3.0.3"
+    "ffmpeg-static": "^5.2.0",
+    "node-cron": "^3.0.3",
+    "opusscript": "^0.0.8",
+    "youtube-dl-exec": "^3.0.10"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",

@@ -12,6 +12,7 @@ import * as history from './commands/history';
 import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
+import * as music from './commands/music';
 
 const client = new Client({
     intents: [
@@ -19,12 +20,13 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildVoiceStates
     ]
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music].forEach(command => {
     commands.set(command.data.name, command);
 });
 

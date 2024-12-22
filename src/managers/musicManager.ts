@@ -1,10 +1,10 @@
 import { VoiceConnection, AudioPlayer, createAudioPlayer, AudioPlayerStatus, createAudioResource } from '@discordjs/voice';
 import { TextChannel, EmbedBuilder, Client, GatewayIntentBits, VoiceChannel, GuildMember, VoiceBasedChannel } from 'discord.js';
 import { QueueItem, MusicState, SkipVoteStatus } from '../types/musicTypes';
-import youtubeDl from 'youtube-dl-exec';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
+import ytdl from '@distube/ytdl-core';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -208,17 +208,17 @@ export class MusicManager {
         if (!this.currentItem) return;
 
         try {
-            const output = await youtubeDl(this.currentItem.url, {
-                format: 'bestaudio',
-                getUrl: true
+            const stream = await ytdl(this.currentItem.url, {
+                filter: 'audioonly',
+                quality: 'highestaudio',
+                highWaterMark: 1 << 25
             });
 
-            const audioUrl = output.toString().trim();
-            const resource = createAudioResource(audioUrl);
+            const resource = createAudioResource(stream);
             this.audioPlayer.play(resource);
         } catch (error) {
             console.error('Erreur de lecture:', error);
-            this.sendMessage('❌ Impossible de lire cette musique. Passage  la suivante...');
+            this.sendMessage('❌ Impossible de lire cette musique. Passage à la suivante...');
             this.playNext();
         }
     }

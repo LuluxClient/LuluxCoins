@@ -99,7 +99,7 @@ export class MusicManager {
             if (content instanceof EmbedBuilder) {
                 await this.musicChannel?.send({ embeds: [content] });
             } else {
-                await this.musicChannel?.send(content);
+                await this.musicChannel?.send({ content });
             }
         } catch (error) {
             console.error('Erreur d\'envoi de message:', error);
@@ -124,7 +124,6 @@ export class MusicManager {
 
     clearQueue() {
         this.queue = [];
-        this.sendMessage('🗑️ La file d\'attente a été vidée.');
     }
 
     setLoop(count: number) {
@@ -139,7 +138,15 @@ export class MusicManager {
     async playNext() {
         if (this.queue.length === 0) {
             this.currentItem = null;
-            this.sendMessage('🎵 La file d\'attente est vide.');
+            const embed = new EmbedBuilder()
+                .setColor('#ffa500')
+                .setTitle('🔇 File d\'attente vide')
+                .setDescription('Plus aucune musique dans la file d\'attente')
+                .setTimestamp();
+
+            if (this.musicChannel) {
+                await this.musicChannel.send({ embeds: [embed] });
+            }
             return;
         }
 
@@ -236,6 +243,10 @@ export class MusicManager {
         return this.connection?.joinConfig.channelId 
             ? (this.connection.joinConfig as any).channel
             : null;
+    }
+
+    public sendChannelMessage(content: string | EmbedBuilder) {
+        this.sendMessage(content);
     }
 }
 

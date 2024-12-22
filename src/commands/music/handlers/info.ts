@@ -7,8 +7,17 @@ export async function info(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('🎵 Lecteur Musical')
-        .setDescription(`${status.queue.length} musiques dans la file d'attente`)
         .setTimestamp();
+
+    if (!status.currentSong && status.queue.length === 0) {
+        embed.setDescription('🔇 La file d\'attente est vide.');
+        return await interaction.reply({ 
+            embeds: [embed],
+            ephemeral: true 
+        });
+    }
+
+    embed.setDescription(`${status.queue.length} musiques dans la file d'attente`);
 
     if (status.currentSong) {
         const loopStatus = status.loopCount > 0 
@@ -26,7 +35,7 @@ export async function info(interaction: ChatInputCommandInteraction) {
 
     if (status.queue.length > 0) {
         const queueList = status.queue
-            .slice(0, 10) // Limite à 10 musiques affichées
+            .slice(0, 10)
             .map((song: QueueItem, index: number) => 
                 `\`${(index + 1).toString().padStart(2, '0')}.\` [${song.title}](${song.url}) - \`${song.duration}\` - Demandé par **${song.requestedBy.username}**`)
             .join('\n');
@@ -39,7 +48,6 @@ export async function info(interaction: ChatInputCommandInteraction) {
             value: queueList + footerText
         });
 
-        // Calcul de la durée totale
         const totalDuration = status.queue.reduce((acc, song) => {
             const [minutes, seconds] = song.duration.split(':').map(Number);
             return acc + (minutes * 60 + seconds);
@@ -54,8 +62,6 @@ export async function info(interaction: ChatInputCommandInteraction) {
         embed.setFooter({
             text: `Durée totale de la file d'attente: ${totalDurationStr}`
         });
-    } else if (!status.currentSong) {
-        embed.setDescription('🔇 Aucune musique dans la file d\'attente');
     }
 
     await interaction.reply({ embeds: [embed] });

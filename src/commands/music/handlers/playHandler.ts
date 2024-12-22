@@ -20,7 +20,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
     }
 
     const url = interaction.options.getString('url', true);
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
 
     try {
         const info = await youtubeDl(url, {
@@ -49,11 +49,15 @@ export async function play(interaction: ChatInputCommandInteraction) {
             }
         });
 
-        await interaction.editReply(`✅ **${info.title}** a été ajouté à la file d'attente.`);
+        await interaction.editReply({
+            content: `✅ **${info.title}** a été ajouté à la file d'attente.`
+        });
 
     } catch (error) {
         console.error('Erreur lors de la lecture:', error);
-        await interaction.editReply('❌ Une erreur est survenue lors de la lecture de la vidéo.');
+        await interaction.editReply({
+            content: '❌ Une erreur est survenue lors de la lecture de la vidéo.'
+        });
     }
 }
 

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, GuildMember } from 'discord.js';
+import { ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
 import youtubeDl from 'youtube-dl-exec';
 import { joinVoiceChannel } from '@discordjs/voice';
@@ -13,17 +13,22 @@ export async function play(interaction: ChatInputCommandInteraction) {
     const voiceChannel = member.voice.channel;
 
     if (!voiceChannel) {
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❌ Erreur')
+            .setDescription('Co toi dans un voc pour mettre de la musique fdp')
+            .setTimestamp();
+
         return await interaction.reply({
-            content: '❌ Vous devez être dans un salon vocal pour utiliser cette commande.',
+            embeds: [embed],
             ephemeral: true
         });
     }
 
     const url = interaction.options.getString('url', true);
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
 
     try {
-        // Récupérer les infos de la vidéo
         const info = await youtubeDl(url, {
             dumpSingleJson: true,
             noWarnings: true,
@@ -31,7 +36,6 @@ export async function play(interaction: ChatInputCommandInteraction) {
             skipDownload: true
         }) as VideoInfo;
 
-        // Connexion au salon vocal si pas déjà connecté
         if (!musicManager.getCurrentVoiceChannel()) {
             const connection = joinVoiceChannel({
                 channelId: voiceChannel.id,
@@ -41,7 +45,6 @@ export async function play(interaction: ChatInputCommandInteraction) {
             musicManager.setConnection(connection);
         }
 
-        // Ajouter à la queue
         musicManager.addToQueue({
             url,
             title: info.title,
@@ -52,11 +55,28 @@ export async function play(interaction: ChatInputCommandInteraction) {
             }
         });
 
-        await interaction.editReply(`✅ **${info.title}** a été ajouté à la file d'attente.`);
+        const embed = new EmbedBuilder()
+            .setColor('#00ff00')
+            .setTitle('✅ Musique ajoutée')
+            .setDescription(`[${info.title}](${url})`)
+            .addFields(
+                { name: '⏱️ Durée', value: formatDuration(info.duration), inline: true },
+                { name: '👤 Demandé par', value: interaction.user.username, inline: true }
+            )
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
         console.error('Erreur lors de la lecture:', error);
-        await interaction.editReply('❌ Une erreur est survenue lors de la lecture de la vidéo.');
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❌ Erreur')
+            .setDescription('Une erreur est survenue lors de la lecture de la vidéo.')
+            .setFooter({ text: 'Vérifie ton URL ou réessaie plus tard' })
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
     }
 }
 

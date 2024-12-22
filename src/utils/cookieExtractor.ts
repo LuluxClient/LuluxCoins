@@ -2,12 +2,11 @@ import fs from 'fs/promises';
 
 export async function extractYoutubeCookies() {
     try {
-        // Créer un fichier de cookies au format Netscape
         const cookieContent = `# Netscape HTTP Cookie File
 # https://curl.haxx.se/rfc/cookie_spec.html
 # This is a generated file!  Do not edit.
 
-youtube.com	TRUE	/	TRUE	2597573456	CONSENT	YES+
+.youtube.com	TRUE	/	TRUE	2597573456	CONSENT	YES+
 .youtube.com	TRUE	/	TRUE	2597573456	PREF	tz=Europe.Paris
 `;
         

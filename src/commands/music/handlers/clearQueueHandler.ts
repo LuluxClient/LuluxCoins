@@ -1,11 +1,12 @@
 import { ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
+import { isStaff } from '../../../utils/permissions';
 
 export async function clearQueue(interaction: ChatInputCommandInteraction) {
     const member = interaction.member as GuildMember;
     
     // Vérification du rôle staff
-    if (!member.roles.cache.some(role => role.name.toLowerCase() === 'staff')) {
+    if (!isStaff(member)) {
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
             .setTitle('❌ Accès refusé')

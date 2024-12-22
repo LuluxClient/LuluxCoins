@@ -64,5 +64,8 @@ export async function info(interaction: ChatInputCommandInteraction) {
         });
     }
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ 
+        embeds: [embed],
+        ephemeral: true 
+    });
 } 

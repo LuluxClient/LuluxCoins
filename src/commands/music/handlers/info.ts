@@ -3,6 +3,20 @@ import { musicManager } from '../../../managers/musicManager';
 import { QueueItem } from '../../../types/musicTypes';
 
 export async function info(interaction: ChatInputCommandInteraction) {
+    // Vérification si l'utilisateur est banni
+    if (musicManager.isUserBanned(interaction.user.id)) {
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❌ Accès refusé')
+            .setDescription('Tu es banni des commandes de musique.')
+            .setTimestamp();
+
+        return await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+        });
+    }
+
     const status = musicManager.getQueueStatus();
     const embed = new EmbedBuilder()
         .setColor('#0099ff')

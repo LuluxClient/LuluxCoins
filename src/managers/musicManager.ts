@@ -6,13 +6,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates
-    ]
-});
-
 export class MusicManager {
     private queue: QueueItem[] = [];
     private currentItem: QueueItem | null = null;
@@ -23,6 +16,7 @@ export class MusicManager {
     private musicChannel: TextChannel | null = null;
     private bannedUsers: Set<string> = new Set();
     private skipVotes: Set<string> = new Set();
+    private client: Client | null = null;
 
     constructor() {
         this.audioPlayer = createAudioPlayer();
@@ -30,21 +24,26 @@ export class MusicManager {
         this.loadBannedUsers();
     }
 
+    public setClient(client: Client) {
+        this.client = client;
+    }
+
     private async loadBannedUsers() {
         try {
             const filePath = path.join(__dirname, '..', 'data', 'musicBans.json');
-            
             const dataDir = path.join(__dirname, '..', 'data');
             await fs.mkdir(dataDir, { recursive: true });
             
+            let bannedArray: string[] = [];
             try {
-                await fs.access(filePath);
+                const data = await fs.readFile(filePath, 'utf-8');
+                bannedArray = JSON.parse(data);
             } catch {
                 await fs.writeFile(filePath, '[]');
             }
             
-            const data = await fs.readFile(filePath, 'utf-8');
-            this.bannedUsers = new Set(JSON.parse(data));
+            this.bannedUsers = new Set(bannedArray);
+            console.log('[DEBUG] Loaded banned users:', [...this.bannedUsers]);
         } catch (error) {
             console.error('Erreur lors du chargement des utilisateurs bannis:', error);
             this.bannedUsers = new Set();
@@ -54,12 +53,9 @@ export class MusicManager {
     private async saveBannedUsers() {
         try {
             const filePath = path.join(__dirname, '..', 'data', 'musicBans.json');
-            const dataDir = path.join(__dirname, '..', 'data');
-            
-            // S'assurer que le dossier existe
-            await fs.mkdir(dataDir, { recursive: true });
-            
-            await fs.writeFile(filePath, JSON.stringify([...this.bannedUsers]));
+            const bannedArray = [...this.bannedUsers];
+            await fs.writeFile(filePath, JSON.stringify(bannedArray, null, 2));
+            console.log('[DEBUG] Saved banned users:', bannedArray);
         } catch (error) {
             console.error('Erreur lors de la sauvegarde des utilisateurs bannis:', error);
         }
@@ -67,11 +63,20 @@ export class MusicManager {
 
     setMusicChannel(channel: TextChannel) {
         this.musicChannel = channel;
+        const embed = new EmbedBuilder()
+            .setColor('#00ff00')
+            .setTitle('✅ Configuration réussie')
+            .setDescription(`Canal de musique configuré sur ${channel.name}`)
+            .setTimestamp();
+
+        this.sendMessage(embed);
     }
 
     async banUser(userId: string) {
+        console.log(`[DEBUG] Banning user ${userId}`);
         this.bannedUsers.add(userId);
         await this.saveBannedUsers();
+        console.log('[DEBUG] Updated banned users:', [...this.bannedUsers]);
     }
 
     async unbanUser(userId: string) {
@@ -79,8 +84,11 @@ export class MusicManager {
         await this.saveBannedUsers();
     }
 
-    isUserBanned(userId: string): boolean {
-        return this.bannedUsers.has(userId);
+    public isUserBanned(userId: string): boolean {
+        const isBanned = this.bannedUsers.has(userId);
+        console.log(`[DEBUG] Checking if user ${userId} is banned:`, isBanned);
+        console.log('[DEBUG] Current banned users:', [...this.bannedUsers]);
+        return isBanned;
     }
 
     private setupEventListeners() {
@@ -102,7 +110,7 @@ export class MusicManager {
     private async sendMessage(content: string | EmbedBuilder) {
         if (!this.musicChannel) {
             try {
-                const channel = await client.channels.fetch(config.musicChannelId) as TextChannel;
+                const channel = await this.client?.channels.fetch(config.musicChannelId) as TextChannel;
                 if (channel?.isTextBased()) {
                     this.musicChannel = channel;
                 } else {
@@ -189,7 +197,7 @@ export class MusicManager {
             .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`)
             .addFields(
                 { name: '⏱️ Durée', value: this.currentItem.duration, inline: true },
-                { name: '�� Demandé par', value: this.currentItem.requestedBy.username, inline: true }
+                { name: 'Demandé par', value: this.currentItem.requestedBy.username, inline: true }
             )
             .setTimestamp();
 

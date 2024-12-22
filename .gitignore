@@ -5,3 +5,4 @@ backups/
 database.json
 status.json
 harassment.json 
+src/data/musicBans.json

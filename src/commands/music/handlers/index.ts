@@ -6,7 +6,7 @@ export async function isBanned(userId: string): Promise<boolean> {
 }
 
 // Export des handlers
-export { play } from './playHandler';
+export { play } from './play';
 export { stop } from './stopHandler';
 export { skip } from './skipHandler';
 export { info } from './infoHandler';

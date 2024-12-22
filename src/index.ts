@@ -33,7 +33,7 @@ const commands = new Collection<string, { execute: (interaction: ChatInputComman
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
-    
+    musicManager.setClient(client); 
     client.user?.setPresence({
         status: 'online',
         activities: [{
@@ -48,6 +48,8 @@ client.once(Events.ClientReady, async () => {
     harassmentManager.setClient(client);
     await harassmentManager.init();
     backupManager.scheduleBackups();
+    
+    musicManager.setClient(client);
     
     try {
         const musicChannel = await client.channels.fetch('1320439761873272844') as TextChannel;

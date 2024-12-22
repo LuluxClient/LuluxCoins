@@ -10,6 +10,24 @@ interface VideoInfo {
 
 export async function play(interaction: ChatInputCommandInteraction) {
     const member = interaction.member as GuildMember;
+    
+    console.log(`[DEBUG] Checking ban status for user ${member.id}`);
+    const isBanned = musicManager.isUserBanned(member.id);
+    console.log(`[DEBUG] User ${member.id} ban status:`, isBanned);
+    
+    if (isBanned) {
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❌ Accès refusé')
+            .setDescription('Tu es banni des commandes de musique.')
+            .setTimestamp();
+
+        return await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+        });
+    }
+
     const voiceChannel = member.voice.channel;
 
     if (!voiceChannel) {

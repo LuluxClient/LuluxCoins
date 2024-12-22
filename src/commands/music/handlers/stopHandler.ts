@@ -1,7 +1,21 @@
-import { ChatInputCommandInteraction, GuildMember } from 'discord.js';
+import { ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
 
 export async function stop(interaction: ChatInputCommandInteraction) {
+    // Vérification si l'utilisateur est banni
+    if (musicManager.isUserBanned(interaction.user.id)) {
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❌ Accès refusé')
+            .setDescription('Tu es banni des commandes de musique.')
+            .setTimestamp();
+
+        return await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+        });
+    }
+
     const member = interaction.member as GuildMember;
     const voiceChannel = member.voice.channel;
 

@@ -1,10 +1,10 @@
 import { VoiceConnection, AudioPlayer, createAudioPlayer, AudioPlayerStatus, createAudioResource } from '@discordjs/voice';
 import { TextChannel, EmbedBuilder, Client, GatewayIntentBits, VoiceChannel, GuildMember, VoiceBasedChannel } from 'discord.js';
 import { QueueItem, MusicState, SkipVoteStatus } from '../types/musicTypes';
-import youtubeDl from 'youtube-dl-exec';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
+import youtubeDl from 'youtube-dl-exec';
 
 export class MusicManager {
     private queue: QueueItem[] = [];

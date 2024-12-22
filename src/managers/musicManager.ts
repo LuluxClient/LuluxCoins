@@ -33,16 +33,36 @@ export class MusicManager {
     private async loadBannedUsers() {
         try {
             const filePath = path.join(__dirname, '..', 'data', 'musicBans.json');
+            
+            const dataDir = path.join(__dirname, '..', 'data');
+            await fs.mkdir(dataDir, { recursive: true });
+            
+            try {
+                await fs.access(filePath);
+            } catch {
+                await fs.writeFile(filePath, '[]');
+            }
+            
             const data = await fs.readFile(filePath, 'utf-8');
             this.bannedUsers = new Set(JSON.parse(data));
-        } catch {
+        } catch (error) {
+            console.error('Erreur lors du chargement des utilisateurs bannis:', error);
             this.bannedUsers = new Set();
         }
     }
 
     private async saveBannedUsers() {
-        const filePath = path.join(__dirname, '..', 'data', 'musicBans.json');
-        await fs.writeFile(filePath, JSON.stringify([...this.bannedUsers]));
+        try {
+            const filePath = path.join(__dirname, '..', 'data', 'musicBans.json');
+            const dataDir = path.join(__dirname, '..', 'data');
+            
+            // S'assurer que le dossier existe
+            await fs.mkdir(dataDir, { recursive: true });
+            
+            await fs.writeFile(filePath, JSON.stringify([...this.bannedUsers]));
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde des utilisateurs bannis:', error);
+        }
     }
 
     setMusicChannel(channel: TextChannel) {

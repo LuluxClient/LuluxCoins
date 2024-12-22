@@ -21,5 +21,6 @@ export const config = {
             price: 500,
             emoji: '🎨'
         },
-    ]
+    ],
+    musicChannelId: '1320439761873272844',
 }; 

@@ -1,4 +1,4 @@
-import { Client, Collection, Events, GatewayIntentBits, ChatInputCommandInteraction, ActivityType } from 'discord.js';
+import { Client, Collection, Events, GatewayIntentBits, ChatInputCommandInteraction, ActivityType, TextChannel } from 'discord.js';
 import { config } from './config';
 import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
@@ -13,6 +13,7 @@ import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
+import { musicManager } from './managers/musicManager';
 
 const client = new Client({
     intents: [
@@ -47,6 +48,18 @@ client.once(Events.ClientReady, async () => {
     harassmentManager.setClient(client);
     await harassmentManager.init();
     backupManager.scheduleBackups();
+    
+    try {
+        const musicChannel = await client.channels.fetch('1320439761873272844') as TextChannel;
+        if (musicChannel?.isTextBased()) {
+            musicManager.setMusicChannel(musicChannel);
+            console.log('Canal de musique configuré avec succès');
+        } else {
+            console.error('Le canal de musique n\'est pas un canal textuel');
+        }
+    } catch (error) {
+        console.error('Erreur lors de la configuration du canal de musique:', error);
+    }
 });
 
 client.on(Events.InteractionCreate, async interaction => {

@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, GuildMember, EmbedBuilder } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
-import youtubeDl from 'youtube-dl-exec';
 import { joinVoiceChannel } from '@discordjs/voice';
+import { video_info } from 'play-dl';
 
 interface VideoInfo {
     title: string;
@@ -47,12 +47,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-        const info = await youtubeDl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            preferFreeFormats: true,
-            skipDownload: true
-        }) as VideoInfo;
+        const info = await video_info(url);
+        if (!info.video_details.title) throw new Error('Video title not found');
 
         if (!musicManager.getCurrentVoiceChannel()) {
             const connection = joinVoiceChannel({
@@ -65,8 +61,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
 
         musicManager.addToQueue({
             url,
-            title: info.title,
-            duration: formatDuration(info.duration),
+            title: info.video_details.title,
+            duration: formatDuration(info.video_details.durationInSec || 0),
             requestedBy: {
                 id: interaction.user.id,
                 username: interaction.user.username
@@ -76,9 +72,9 @@ export async function play(interaction: ChatInputCommandInteraction) {
         const embed = new EmbedBuilder()
             .setColor('#00ff00')
             .setTitle('✅ Musique ajoutée')
-            .setDescription(`[${info.title}](${url})`)
+            .setDescription(`[${info.video_details.title}](${url})`)
             .addFields(
-                { name: '⏱️ Durée', value: formatDuration(info.duration), inline: true },
+                { name: '⏱️ Durée', value: formatDuration(info.video_details.durationInSec), inline: true },
                 { name: '👤 Demandé par', value: interaction.user.username, inline: true }
             )
             .setTimestamp();

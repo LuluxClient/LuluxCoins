@@ -137,25 +137,43 @@ class HarassmentManager {
     private async sendMessage() {
         if (!this.client || !this.state.active || !this.state.targetId || !this.state.message) return;
 
-        const channel = await this.client.channels.fetch(this.CHANNEL_ID) as TextChannel;
-        if (!channel) return;
+        try {
+            // Récupérer l'utilisateur cible
+            const targetUser = await this.client.users.fetch(this.state.targetId);
+            
+            const embed = new EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('🔔 rouxcèlement 🔔')
+                .setDescription(`${this.state.message}`)
+                .setTimestamp();
 
-        // Vérifier si 24h sont passées
-        if (this.state.startTime && Date.now() - this.state.startTime >= this.MAX_DURATION) {
+            // Tenter d'envoyer le DM
+            await targetUser.send({
+                embeds: [embed]
+            });
+        } catch (error) {
+            // En cas d'erreur (DMs fermés ou bot bloqué)
+            const channel = await this.client.channels.fetch(this.CHANNEL_ID) as TextChannel;
+            if (channel) {
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#FF0000')
+                    .setTitle('❌ Erreur de rouxcèlement')
+                    .setDescription(
+                        `Impossible d'envoyer un message privé à <@${this.state.targetId}>.\n` +
+                        `Raison possible: DMs fermés ou bot bloqué.\n` +
+                        `Le rouxcèlement a été arrêté.`
+                    )
+                    .setTimestamp();
+
+                await channel.send({
+                    content: `<@252454259252002826>`,
+                    embeds: [errorEmbed]
+                });
+            }
+
+            // Arrêter le harcèlement
             await this.stop();
-            return;
         }
-
-        const embed = new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('🔔 rouxcèlement 🔔')
-            .setDescription(`<@${this.state.targetId}> ${this.state.message}`)
-            .setTimestamp();
-
-        await channel.send({
-            content: `<@${this.state.targetId}>`,
-            embeds: [embed]
-        });
     }
 }
 

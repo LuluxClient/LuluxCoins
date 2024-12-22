@@ -52,11 +52,12 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noWarnings: true,
             preferFreeFormats: true,
             skipDownload: true,
-            cookies: '/root/cookies.txt',
+            format: 'bestaudio',
             geoBypass: true,
             geoBypassCountry: 'FR',
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            format: 'bestaudio',
+            addHeader: [
+                'User-Agent:com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip'
+            ]
         }, {
             cwd: process.cwd(),
         }) as VideoInfo;

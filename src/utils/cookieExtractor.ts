@@ -1,39 +1,13 @@
-import { exec } from 'child_process';
 import fs from 'fs/promises';
-import path from 'path';
 
 export async function extractYoutubeCookies() {
     try {
-        // Chemin vers le profil Firefox par défaut
-        const profilePath = '/root/.mozilla/firefox/*.default-release';
+        // Créer un fichier de cookies basique avec le consentement
+        const cookieContent = `youtube.com	TRUE	/	TRUE	2597573456	CONSENT	YES+`;
         
-        // Commande pour extraire les cookies YouTube
-        const command = `
-            sqlite3 ${profilePath}/cookies.sqlite "SELECT name, value FROM moz_cookies WHERE host LIKE '%youtube%'" -csv > /root/cookies.txt
-        `;
-
-        // Exécuter la commande
-        exec(command, async (error, stdout, stderr) => {
-            if (error) {
-                console.error('Erreur lors de l\'extraction des cookies:', error);
-                return;
-            }
-            
-            // Formater le fichier cookies.txt au format Netscape
-            const cookies = await fs.readFile('/root/cookies.txt', 'utf-8');
-            const formattedCookies = cookies
-                .split('\n')
-                .filter(line => line.trim())
-                .map(line => {
-                    const [name, value] = line.split(',');
-                    return `youtube.com\tTRUE\t/\tTRUE\t2597573456\t${name}\t${value}`;
-                })
-                .join('\n');
-
-            await fs.writeFile('/root/cookies.txt', formattedCookies);
-            console.log('Cookies YouTube extraits avec succès');
-        });
+        await fs.writeFile('/root/cookies.txt', cookieContent);
+        console.log('Fichier de cookies YouTube créé avec succès');
     } catch (error) {
-        console.error('Erreur:', error);
+        console.error('Erreur lors de la création du fichier cookies:', error);
     }
 } 

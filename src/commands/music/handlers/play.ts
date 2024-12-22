@@ -55,6 +55,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
             cookies: '/root/cookies.txt',
             geoBypass: true,
             geoBypassCountry: 'FR',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            format: 'bestaudio',
         }, {
             cwd: process.cwd(),
         }) as VideoInfo;

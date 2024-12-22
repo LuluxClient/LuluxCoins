@@ -51,8 +51,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             dumpSingleJson: true,
             noWarnings: true,
             preferFreeFormats: true,
-            skipDownload: true,
-            cookies: '/root/cookies.txt'
+            skipDownload: true
         }) as VideoInfo;
 
         if (!musicManager.getCurrentVoiceChannel()) {

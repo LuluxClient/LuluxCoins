@@ -123,7 +123,16 @@ export class MusicManager {
     }
 
     clearQueue() {
+        const queueSize = this.queue.length;
         this.queue = [];
+        
+        const embed = new EmbedBuilder()
+            .setColor('#00ff00')
+            .setTitle('🗑️ File d\'attente vidée')
+            .setDescription(`${queueSize} musiques supprimées`)
+            .setTimestamp();
+
+        this.sendMessage(embed);
     }
 
     setLoop(count: number) {
@@ -160,7 +169,7 @@ export class MusicManager {
             .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`)
             .addFields(
                 { name: '⏱️ Durée', value: this.currentItem.duration, inline: true },
-                { name: '👤 Demandé par', value: this.currentItem.requestedBy.username, inline: true }
+                { name: '�� Demandé par', value: this.currentItem.requestedBy.username, inline: true }
             )
             .setTimestamp();
 
@@ -214,7 +223,13 @@ export class MusicManager {
 
     async skip() {
         if (!this.currentItem) {
-            this.sendMessage('❌ Aucune musique en cours de lecture.');
+            const embed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('❌ Erreur')
+                .setDescription('Aucune musique en cours de lecture fdp')
+                .setTimestamp();
+
+            this.sendMessage(embed);
             return;
         }
 

@@ -55,9 +55,9 @@ export async function play(interaction: ChatInputCommandInteraction) {
             format: 'bestaudio',
             geoBypass: true,
             geoBypassCountry: 'FR',
-            addHeader: [
-                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ]
+            extractAudio: true,
+            audioFormat: 'mp3',
+            audioQuality: 0
         }, {
             cwd: process.cwd(),
         }) as VideoInfo;

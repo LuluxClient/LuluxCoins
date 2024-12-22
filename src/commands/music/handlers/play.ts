@@ -54,10 +54,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             skipDownload: true,
             format: 'bestaudio',
             geoBypass: true,
-            geoBypassCountry: 'FR',
-            extractAudio: true,
-            audioFormat: 'mp3',
-            audioQuality: 0
+            geoBypassCountry: 'FR'
         }, {
             cwd: process.cwd(),
         }) as VideoInfo;

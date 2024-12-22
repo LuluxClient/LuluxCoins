@@ -14,6 +14,7 @@ import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
 import { musicManager } from './managers/musicManager';
+import { extractYoutubeCookies } from './utils/cookieExtractor';
 
 const client = new Client({
     intents: [
@@ -33,6 +34,7 @@ const commands = new Collection<string, { execute: (interaction: ChatInputComman
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
+    await extractYoutubeCookies();
     musicManager.setClient(client); 
     client.user?.setPresence({
         status: 'online',

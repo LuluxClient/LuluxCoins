@@ -6,6 +6,7 @@ import path from 'path';
 import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
 import { execSync } from 'child_process';
+import { stream as playDlStream, setToken } from 'play-dl';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -224,40 +225,37 @@ export class MusicManager {
             console.log('Aucun item à jouer');
             return;
         }
-        
-        try {
-            const audioUrl = this.currentItem.audioUrl;
-            if (!audioUrl) {
-                throw new Error('No audio URL available');
-            }
 
+        try {
             if (!this.connection || this.connection.state.status === 'destroyed') {
                 console.error('Connection perdue - impossible de jouer');
                 return;
             }
 
-            // Vérifier que FFmpeg est disponible
-            try {
-                execSync('ffmpeg -version');
-            } catch (error) {
-                console.error('FFmpeg n\'est pas disponible:', error);
-                throw new Error('FFmpeg not available');
-            }
+            console.log('Création du stream pour:', this.currentItem.title);
 
-            console.log('Création de la ressource audio pour:', this.currentItem.title);
-            
-            // Utiliser des options plus spécifiques pour FFmpeg
-            const resource = createAudioResource(audioUrl, {
-                inputType: StreamType.Arbitrary,
-                inlineVolume: true,
-                silencePaddingFrames: 5
+            // Créer le stream avec play-dl
+            const { stream, type } = await playDlStream(this.currentItem.url, {
+                discordPlayerCompatibility: true,
+                quality: 2,
+                htmldata: false
             });
 
-            // S'assurer que la connexion est active
-            this.connection.subscribe(this.audioPlayer);
-            
-            // Réinitialiser l'état de lecture
+            const resource = createAudioResource(stream, {
+                inputType: type,
+                inlineVolume: true
+            });
+
+            if (resource.volume) {
+                resource.volume.setVolume(0.5);
+            }
+
+            // Nettoyer l'ancien état
+            this.audioPlayer.stop();
             this.isPlaying = false;
+
+            // Configurer la nouvelle connexion
+            this.connection.subscribe(this.audioPlayer);
             
             // Démarrer la lecture
             this.audioPlayer.play(resource);
@@ -268,7 +266,6 @@ export class MusicManager {
             console.error('Erreur détaillée:', error);
             this.isPlaying = false;
             this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
-            // Attendre un peu avant de passer à la suivante
             setTimeout(() => this.playNext(), 1000);
         }
     }

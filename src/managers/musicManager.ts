@@ -236,24 +236,33 @@ export class MusicManager {
 
             console.log('Création du stream pour:', this.currentItem.title);
             
-            const stream = await playDlStream(this.currentItem.audioUrl || this.currentItem.url);
+            const stream = await playDlStream(this.currentItem.url, {
+                discordPlayerCompatibility: true,
+                quality: 2,
+                seek: 0
+            });
 
             const resource = createAudioResource(stream.stream, {
                 inputType: stream.type,
-                inlineVolume: true
+                inlineVolume: true,
+                silencePaddingFrames: 1,
             });
 
             if (resource.volume) {
-                resource.volume.setVolume(1);
+                resource.volume.setVolume(0.5);
             }
 
+            this.audioPlayer.stop();
             this.connection.subscribe(this.audioPlayer);
+
             this.isPlaying = false;
             this.audioPlayer.play(resource);
             
             console.log('Lecture démarrée avec succès');
             console.log('État de la connexion:', this.connection.state.status);
             console.log('État de l\'AudioPlayer:', this.audioPlayer.state.status);
+            console.log('Type de stream:', stream.type);
+            console.log('Volume:', resource.volume?.volume);
 
         } catch (error) {
             console.error('Erreur détaillée:', error);

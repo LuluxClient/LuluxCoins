@@ -82,19 +82,31 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noWarnings: true,
             preferFreeFormats: true,
             skipDownload: true,
-            format: 'bestaudio',
+            format: 'bestaudio/best',
             cookies: cookiesPath,
             getUrl: true,
-            // Add these options to help bypass detection
             addHeader: [
                 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                 'Accept-Language:en-US,en;q=0.9',
                 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
             ],
-            sleepInterval: 2 // Add small delay between requests
+            sleepInterval: 2
         }).then(output => output as unknown as VideoInfo);
 
-        const audioUrl = info.formats[0].url;
+        // Vérification et extraction de l'URL audio
+        let audioUrl: string;
+        if (info.formats && info.formats.length > 0) {
+            audioUrl = info.formats[0].url;
+        } else if (typeof info.url === 'string') {
+            // Fallback sur l'URL directe si disponible
+            audioUrl = info.url;
+        } else {
+            throw new Error('No valid audio format found');
+        }
+
+        if (!audioUrl) {
+            throw new Error('Could not extract audio URL');
+        }
 
         if (!musicManager.getCurrentVoiceChannel()) {
             const connection = joinVoiceChannel({
@@ -108,8 +120,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
 
         musicManager.addToQueue({
             url,
-            title: info.title,
-            duration: formatDuration(info.duration),
+            title: info.title || 'Unknown Title',
+            duration: formatDuration(info.duration || 0),
             requestedBy: {
                 id: interaction.user.id,
                 username: interaction.user.username,
@@ -137,6 +149,8 @@ export async function play(interaction: ChatInputCommandInteraction) {
             errorMsg = 'La vidéo n\'est pas disponible. Vérifie l\'URL.';
         } else if (error.message.includes('age-restricted')) {
             errorMsg = 'La vidéo est restreinte par l\'âge.';
+        } else if (error.message.includes('No valid audio format found')) {
+            errorMsg = 'Impossible de trouver un format audio valide pour cette vidéo.';
         }
 
         const embed = new EmbedBuilder()

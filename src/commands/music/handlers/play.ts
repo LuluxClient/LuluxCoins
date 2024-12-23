@@ -96,27 +96,40 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noCheckCertificates: true,
             callHome: false,
             maxDownloads: 1,
-            maxFilesize: '50m'
+            maxFilesize: '50m',
+            writeInfoJson: true,
+            addMetadata: true,
+            embedThumbnail: false,
+            noPlaylist: true
         }) as any;
 
         // Log de débogage
         console.log('YouTube-DL response:', JSON.stringify(info, null, 2));
 
-        // Simplifier la logique d'extraction de l'URL
+        // Modification de la logique d'extraction des métadonnées
+        let title = 'Unknown Title';
+        let duration = 0;
         let audioUrl: string | undefined;
 
         if (typeof info === 'string') {
             audioUrl = info;
-        } else if (info?.url) {
-            audioUrl = info.url;
-        } else if (info?.formats?.length > 0) {
-            const audioFormats = info.formats
-                .filter((f: any) => f?.url && (!f.format_note?.includes('video')))
-                .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
-
-            if (audioFormats.length > 0) {
-                audioUrl = audioFormats[0].url;
+            // Essayer d'extraire le titre de l'URL YouTube
+            try {
+                const videoId = url.split('v=')[1].split('&')[0];
+                const videoInfo = await youtubeDl(url, {
+                    dumpSingleJson: true,
+                    skipDownload: true,
+                    noPlaylist: true
+                }) as any;
+                title = videoInfo.title || 'Unknown Title';
+                duration = videoInfo.duration || 0;
+            } catch (error) {
+                console.error('Error fetching video metadata:', error);
             }
+        } else if (typeof info === 'object' && info !== null) {
+            title = info.title || 'Unknown Title';
+            duration = info.duration || 0;
+            audioUrl = info.url || (info.formats && info.formats[0]?.url);
         }
 
         if (!audioUrl) {
@@ -132,11 +145,6 @@ export async function play(interaction: ChatInputCommandInteraction) {
             });
             musicManager.setConnection(connection);
         }
-
-        // Mise à jour de l'interface VideoInfo pour inclure les champs potentiellement manquants
-        const title = info.title || 'Unknown Title';
-        const duration = typeof info.duration === 'number' ? info.duration : 0;
-
         musicManager.addToQueue({
             url,
             title,

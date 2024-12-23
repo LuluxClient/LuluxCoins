@@ -96,31 +96,37 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noCheckCertificates: true,
             callHome: false,
             youtubeSkipDashManifest: true
-        }).then(output => output as unknown as VideoInfo);
+        }) as any;
+
+        // Log de débogage
+        console.log('YouTube-DL response:', JSON.stringify(info, null, 2));
 
         // Amélioration de la logique d'extraction de l'URL audio
         let audioUrl: string | undefined;
 
-        // Vérifier d'abord l'URL directe
-        if (typeof info.url === 'string' && info.url) {
-            audioUrl = info.url;
-        } 
-        // Sinon, chercher dans les formats
-        else if (info.formats && Array.isArray(info.formats)) {
-            // Trier les formats par qualité (supposant qu'ils ont un champ quality_label)
-            const audioFormats = info.formats
-                .filter(f => f.url && (
-                    f.acodec !== 'none' && 
-                    !f.format_note?.includes('video')
-                ));
+        if (typeof info === 'string') {
+            // Si info est une string, c'est probablement l'URL directe
+            audioUrl = info;
+        } else if (typeof info === 'object' && info !== null) {
+            // Vérifier d'abord l'URL directe
+            if (typeof info.url === 'string' && info.url) {
+                audioUrl = info.url;
+            } 
+            // Sinon, chercher dans les formats
+            else if (Array.isArray(info.formats)) {
+                console.log('Available formats:', JSON.stringify(info.formats, null, 2));
+                const audioFormats = info.formats
+                    .filter((f: any) => f && typeof f === 'object' && f.url)
+                    .filter((f: any) => !f.format_note?.includes('video'));
 
-            if (audioFormats.length > 0) {
-                audioUrl = audioFormats[0].url;
+                if (audioFormats.length > 0) {
+                    audioUrl = audioFormats[0].url;
+                }
             }
         }
 
         if (!audioUrl) {
-            console.error('Available formats:', JSON.stringify(info.formats, null, 2));
+            console.error('No valid audio URL found in response');
             throw new Error('No valid audio format found');
         }
 

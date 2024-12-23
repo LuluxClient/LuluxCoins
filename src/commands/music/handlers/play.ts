@@ -82,25 +82,36 @@ export async function play(interaction: ChatInputCommandInteraction) {
         const info = await youtubeDl(url, {
             dumpJson: true,
             quiet: true,
-            format: 'bestaudio[ext=m4a]/bestaudio',
+            format: 'bestaudio',
             cookies: cookiesPath,
             noCheckCertificates: true,
             callHome: false,
             extractAudio: true,
-            audioFormat: 'm4a',
+            audioFormat: 'opus',
+            audioQuality: 0,
             addHeader: [
                 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ]
+            ],
+            output: '%(title)s.%(ext)s',
+            preferFreeFormats: true,
+            noWarnings: true,
+            bufferSize: '16K'
         }) as any;
 
-        // Log minimal
-        console.log('Tentative de lecture de:', url);
+        // Ajout de logs pour le débogage
+        console.log('Info reçue:', {
+            title: info.title,
+            duration: info.duration,
+            hasUrl: !!info.url,
+            hasFormats: !!info.formats
+        });
 
         let title = info.title || 'Unknown Title';
         let duration = info.duration || 0;
         let audioUrl = info.url || info.formats?.[0]?.url;
 
         if (!audioUrl) {
+            console.error('Pas d\'URL audio trouvée dans:', info);
             throw new Error('Format audio invalide - URL manquante');
         }
 

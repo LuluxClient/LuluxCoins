@@ -18,6 +18,7 @@ export class MusicManager {
     private bannedUsers: Set<string> = new Set();
     private skipVotes: Set<string> = new Set();
     private client: Client | null = null;
+    private isPlaying: boolean = false;
 
     constructor() {
         this.audioPlayer = createAudioPlayer();
@@ -95,26 +96,32 @@ export class MusicManager {
     private setupEventListeners() {
         this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
             console.log('AudioPlayer est devenu Idle');
-            if (this.currentItem) {
-                if (this.loopRemaining > 0) {
-                    console.log('Mode répétition actif, répétitions restantes:', this.loopRemaining);
-                    this.loopRemaining--;
-                    this.playCurrentSong();
-                } else {
-                    console.log('Passage à la chanson suivante');
-                    this.playNext();
+            if (this.isPlaying) {
+                this.isPlaying = false;
+                if (this.currentItem) {
+                    if (this.loopRemaining > 0) {
+                        console.log('Mode répétition actif, répétitions restantes:', this.loopRemaining);
+                        this.loopRemaining--;
+                        this.playCurrentSong();
+                    } else {
+                        console.log('Passage à la chanson suivante');
+                        this.playNext();
+                    }
                 }
             }
         });
 
         this.audioPlayer.on(AudioPlayerStatus.Playing, () => {
-            console.log('AudioPlayer commence à jouer:', this.currentItem?.title);
-            if (this.currentItem) {
-                const embed = new EmbedBuilder()
-                    .setColor('#00ff00')
-                    .setTitle('🎵 Lecture en cours')
-                    .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
-                this.sendMessage(embed);
+            if (!this.isPlaying) {
+                console.log('AudioPlayer commence à jouer:', this.currentItem?.title);
+                this.isPlaying = true;
+                if (this.currentItem) {
+                    const embed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('🎵 Lecture en cours')
+                        .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
+                    this.sendMessage(embed);
+                }
             }
         });
 
@@ -224,23 +231,23 @@ export class MusicManager {
                 throw new Error('No audio URL available');
             }
 
+            if (!this.connection || this.connection.state.status === 'destroyed') {
+                console.error('Connection perdue - impossible de jouer');
+                return;
+            }
+
             console.log('Création de la ressource audio pour:', this.currentItem.title);
             const resource = createAudioResource(audioUrl, {
                 inputType: StreamType.Arbitrary,
                 inlineVolume: true
             });
 
-            if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection perdue - tentative de reconnexion...');
-                return;
-            }
-
-            console.log('Lecture de la ressource audio');
-            this.connection.subscribe(this.audioPlayer);
+            this.isPlaying = false;
             this.audioPlayer.play(resource);
 
         } catch (error) {
             console.error('Erreur détaillée:', error);
+            this.isPlaying = false;
             this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
             this.playNext();
         }
@@ -289,7 +296,11 @@ export class MusicManager {
     }
 
     setConnection(connection: VoiceConnection) {
+        if (this.connection) {
+            this.connection.destroy();
+        }
         this.connection = connection;
+        this.isPlaying = false;
         connection.subscribe(this.audioPlayer);
     }
 
@@ -303,6 +314,7 @@ export class MusicManager {
         this.loopCount = 0;
         this.loopRemaining = 0;
         this.skipVotes.clear();
+        this.isPlaying = false;
     }
 
     getCurrentVoiceChannel(): VoiceChannel | null {

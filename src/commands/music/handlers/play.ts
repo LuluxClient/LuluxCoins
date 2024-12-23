@@ -11,6 +11,8 @@ interface VideoInfo {
     url: string;
     formats: Array<{
         url: string;
+        acodec?: string;
+        format_note?: string;
     }>;
 }
 
@@ -82,7 +84,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noWarnings: true,
             preferFreeFormats: true,
             skipDownload: true,
-            format: 'bestaudio/best',
+            format: 'bestaudio[ext=m4a]/bestaudio/best',
             cookies: cookiesPath,
             getUrl: true,
             addHeader: [
@@ -91,25 +93,35 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
             ],
             sleepInterval: 2,
-            // Add these options to help bypass restrictions
             noCheckCertificates: true,
             callHome: false,
             youtubeSkipDashManifest: true
         }).then(output => output as unknown as VideoInfo);
 
-        // Vérification et extraction de l'URL audio
-        let audioUrl: string;
-        if (info.formats && info.formats.length > 0) {
-            audioUrl = info.formats[0].url;
-        } else if (typeof info.url === 'string') {
-            // Fallback sur l'URL directe si disponible
+        // Amélioration de la logique d'extraction de l'URL audio
+        let audioUrl: string | undefined;
+
+        // Vérifier d'abord l'URL directe
+        if (typeof info.url === 'string' && info.url) {
             audioUrl = info.url;
-        } else {
-            throw new Error('No valid audio format found');
+        } 
+        // Sinon, chercher dans les formats
+        else if (info.formats && Array.isArray(info.formats)) {
+            // Trier les formats par qualité (supposant qu'ils ont un champ quality_label)
+            const audioFormats = info.formats
+                .filter(f => f.url && (
+                    f.acodec !== 'none' && 
+                    !f.format_note?.includes('video')
+                ));
+
+            if (audioFormats.length > 0) {
+                audioUrl = audioFormats[0].url;
+            }
         }
 
         if (!audioUrl) {
-            throw new Error('Could not extract audio URL');
+            console.error('Available formats:', JSON.stringify(info.formats, null, 2));
+            throw new Error('No valid audio format found');
         }
 
         if (!musicManager.getCurrentVoiceChannel()) {
@@ -122,23 +134,27 @@ export async function play(interaction: ChatInputCommandInteraction) {
             musicManager.setConnection(connection);
         }
 
+        // Mise à jour de l'interface VideoInfo pour inclure les champs potentiellement manquants
+        const title = info.title || 'Unknown Title';
+        const duration = typeof info.duration === 'number' ? info.duration : 0;
+
         musicManager.addToQueue({
             url,
-            title: info.title || 'Unknown Title',
-            duration: formatDuration(info.duration || 0),
+            title,
+            duration: formatDuration(duration),
             requestedBy: {
                 id: interaction.user.id,
                 username: interaction.user.username,
             },
-            audioUrl: audioUrl
+            audioUrl
         });
 
         const embed = new EmbedBuilder()
             .setColor('#00ff00')
             .setTitle('✅ Musique ajoutée')
-            .setDescription(`[${info.title}](${url})`)
+            .setDescription(`[${title}](${url})`)
             .addFields(
-                { name: '⏱️ Durée', value: formatDuration(info.duration), inline: true },
+                { name: '⏱️ Durée', value: formatDuration(duration), inline: true },
                 { name: '👤 Demandé par', value: interaction.user.username, inline: true },
             )
             .setTimestamp();
@@ -154,7 +170,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
         } else if (error.message.includes('age-restricted')) {
             errorMsg = 'La vidéo est restreinte par l\'âge.';
         } else if (error.message.includes('No valid audio format found')) {
-            errorMsg = 'Impossible de trouver un format audio valide pour cette vidéo.';
+            errorMsg = 'Impossible de trouver un format audio valide pour cette vidéo. Essaie une autre URL.';
         }
 
         const embed = new EmbedBuilder()

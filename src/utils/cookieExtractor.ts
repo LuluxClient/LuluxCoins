@@ -1,57 +1,40 @@
-import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 
 export async function extractYoutubeCookies() {
     try {
-        console.log('Starting YouTube cookie extraction...');
+        console.log('Starting YouTube cookie setup...');
         
         // Path for the cookies file
         const cookiesPath = path.join(process.cwd(), 'cookies.txt');
         
-        // Get the home directory of the non-root user
-        const homeDir = os.homedir();
-        const username = homeDir.split('/').pop(); // Get username from home directory
-        
-        console.log('Attempting to extract cookies for user:', username);
-        
-        // Define browser profile paths
-        const chromePath = `/home/${username}/.config/google-chrome`;
-        const firefoxPath = `/home/${username}/.mozilla/firefox`;
-        
-        // Extract cookies from Chrome/Chromium
-        try {
-            execSync(`yt-dlp --chrome-browser-path "${chromePath}" --cookies-from-browser chrome --cookies "${cookiesPath}"`, {
-                stdio: 'pipe'
-            });
-            console.log('Successfully extracted cookies from Chrome');
-        } catch (chromeError) {
-            console.log('Failed to extract from Chrome, trying Firefox...');
-            try {
-                execSync(`yt-dlp --firefox-browser-path "${firefoxPath}" --cookies-from-browser firefox --cookies "${cookiesPath}"`, {
-                    stdio: 'pipe'
-                });
-                console.log('Successfully extracted cookies from Firefox');
-            } catch (firefoxError) {
-                console.error('Failed to extract cookies from both Chrome and Firefox:', firefoxError);
-                throw new Error('Could not extract cookies from any browser');
-            }
-        }
+        // Create a basic cookie file with Netscape format
+        const cookieContent = `# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file!  Do not edit.
 
-        // Verify the cookies file exists and has content
-        const cookiesContent = await fs.readFile(cookiesPath, 'utf-8');
-        if (!cookiesContent.includes('youtube.com')) {
-            throw new Error('No YouTube cookies found in extracted cookies');
-        }
+.youtube.com	TRUE	/	TRUE	2324869548	CONSENT	PENDING+355
+.youtube.com	TRUE	/	TRUE	2324869548	VISITOR_INFO1_LIVE	${generateRandomString(11)}
+.youtube.com	TRUE	/	TRUE	2324869548	YSC	${generateRandomString(11)}
+.youtube.com	TRUE	/	TRUE	2324869548	GPS	1
+`;
 
-        // Ensure the cookies file is readable by the process
+        await fs.writeFile(cookiesPath, cookieContent);
         await fs.chmod(cookiesPath, '644');
 
-        console.log('Cookie extraction completed successfully');
+        console.log('Cookie file created successfully');
         return cookiesPath;
     } catch (error) {
-        console.error('Error during cookie extraction:', error);
+        console.error('Error creating cookie file:', error);
         throw error;
     }
+}
+
+function generateRandomString(length: number): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 } 

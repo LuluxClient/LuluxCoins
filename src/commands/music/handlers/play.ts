@@ -90,7 +90,11 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 'Accept-Language:en-US,en;q=0.9',
                 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
             ],
-            sleepInterval: 2
+            sleepInterval: 2,
+            // Add these options to help bypass restrictions
+            noCheckCertificates: true,
+            callHome: false,
+            youtubeSkipDashManifest: true
         }).then(output => output as unknown as VideoInfo);
 
         // Vérification et extraction de l'URL audio

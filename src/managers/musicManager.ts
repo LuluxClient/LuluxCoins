@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
+import { execSync } from 'child_process';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -212,36 +213,35 @@ export class MusicManager {
                 throw new Error('No audio URL available');
             }
 
+            // Vérifier FFmpeg
+            try {
+                const ffmpegVersion = execSync('ffmpeg -version').toString();
+                console.log('FFmpeg est installé:', ffmpegVersion.split('\n')[0]);
+            } catch (error) {
+                console.error('FFmpeg n\'est pas installé!');
+                throw new Error('FFmpeg is not installed');
+            }
+
             console.log('Tentative de lecture:', {
                 title: this.currentItem.title,
                 url: audioUrl.substring(0, 100) + '...'
             });
 
             const resource = createAudioResource(audioUrl, {
-                inlineVolume: true,
-                inputType: StreamType.Arbitrary
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true
             });
 
-            if (!resource) {
-                throw new Error('Failed to create audio resource');
-            }
-
             if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection is not available or destroyed');
+                console.error('Connection perdue - tentative de reconnexion...');
                 return;
             }
 
+            this.connection.subscribe(this.audioPlayer);
             this.audioPlayer.play(resource);
-            
-            const embed = new EmbedBuilder()
-                .setColor('#00ff00')
-                .setTitle('🎵 Lecture en cours')
-                .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
-            
-            this.sendMessage(embed);
         } catch (error) {
-            console.error('Erreur de lecture:', error);
-            this.sendMessage('❌ Impossible de lire cette musique. Passage à la suivante...');
+            console.error('Erreur détaillée:', error);
+            this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
             this.playNext();
         }
     }

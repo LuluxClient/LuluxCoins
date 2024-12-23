@@ -236,20 +236,40 @@ export class MusicManager {
                 return;
             }
 
+            // Vérifier que FFmpeg est disponible
+            try {
+                execSync('ffmpeg -version');
+            } catch (error) {
+                console.error('FFmpeg n\'est pas disponible:', error);
+                throw new Error('FFmpeg not available');
+            }
+
             console.log('Création de la ressource audio pour:', this.currentItem.title);
+            
+            // Utiliser des options plus spécifiques pour FFmpeg
             const resource = createAudioResource(audioUrl, {
                 inputType: StreamType.Arbitrary,
-                inlineVolume: true
+                inlineVolume: true,
+                silencePaddingFrames: 5
             });
 
+            // S'assurer que la connexion est active
+            this.connection.subscribe(this.audioPlayer);
+            
+            // Réinitialiser l'état de lecture
             this.isPlaying = false;
+            
+            // Démarrer la lecture
             this.audioPlayer.play(resource);
+            
+            console.log('Lecture démarrée avec succès');
 
         } catch (error) {
             console.error('Erreur détaillée:', error);
             this.isPlaying = false;
             this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
-            this.playNext();
+            // Attendre un peu avant de passer à la suivante
+            setTimeout(() => this.playNext(), 1000);
         }
     }
 

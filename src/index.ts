@@ -34,7 +34,15 @@ const commands = new Collection<string, { execute: (interaction: ChatInputComman
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
-    await extractYoutubeCookies();
+    
+    try {
+        await extractYoutubeCookies();
+        console.log('YouTube cookies extracted successfully');
+    } catch (error) {
+        console.error('Failed to extract YouTube cookies:', error);
+        // Continue anyway, as we might still work without cookies
+    }
+    
     musicManager.setClient(client); 
     client.user?.setPresence({
         status: 'online',

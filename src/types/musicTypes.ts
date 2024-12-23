@@ -6,6 +6,7 @@ export interface QueueItem {
         id: string;
         username: string;
     };
+    audioUrl?: string;
 }
 
 export interface MusicState {

@@ -206,19 +206,11 @@ export class MusicManager {
 
     async playCurrentSong() {
         if (!this.currentItem) return;
-
         try {
-            const output = await youtubeDl(this.currentItem.url, {
-                format: 'bestaudio',
-                getUrl: true,
-                cookies: '/root/cookies.txt'
-            });
-
-            if (!output) {
-                throw new Error('Could not get audio URL');
+            const audioUrl = this.currentItem.audioUrl;
+            if (!audioUrl) {
+                throw new Error('No audio URL available');
             }
-
-            const audioUrl = output.toString().trim();
             const resource = createAudioResource(audioUrl);
             this.audioPlayer.play(resource);
         } catch (error) {

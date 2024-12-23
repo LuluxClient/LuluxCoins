@@ -8,6 +8,10 @@ import path from 'path';
 interface VideoInfo {
     title: string;
     duration: number;
+    url: string;
+    formats: Array<{
+        url: string;
+    }>;
 }
 
 export async function play(interaction: ChatInputCommandInteraction) {
@@ -62,13 +66,16 @@ export async function play(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-        // Mettre à jour yt-dlp avant chaque utilisation
+        // Update yt-dlp before each use
         const ytDlpPath = path.join(process.cwd(), 'node_modules/youtube-dl-exec/bin/yt-dlp');
         try {
             execSync(`${ytDlpPath} -U`, { stdio: 'ignore' });
         } catch (error) {
-            console.error('Erreur lors de la mise à jour de yt-dlp:', error);
+            console.error('Error updating yt-dlp:', error);
         }
+
+        // Use cookies file from current working directory
+        const cookiesPath = path.join(process.cwd(), 'cookies.txt');
 
         const info = await youtubeDl(url, {
             dumpSingleJson: true,
@@ -76,8 +83,18 @@ export async function play(interaction: ChatInputCommandInteraction) {
             preferFreeFormats: true,
             skipDownload: true,
             format: 'bestaudio',
-            cookies: '/root/cookies.txt'
-        }) as VideoInfo;
+            cookies: cookiesPath,
+            getUrl: true,
+            // Add these options to help bypass detection
+            addHeader: [
+                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept-Language:en-US,en;q=0.9',
+                'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+            ],
+            sleepInterval: 2 // Add small delay between requests
+        }).then(output => output as unknown as VideoInfo);
+
+        const audioUrl = info.formats[0].url;
 
         if (!musicManager.getCurrentVoiceChannel()) {
             const connection = joinVoiceChannel({
@@ -97,6 +114,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 id: interaction.user.id,
                 username: interaction.user.username,
             },
+            audioUrl: audioUrl
         });
 
         const embed = new EmbedBuilder()

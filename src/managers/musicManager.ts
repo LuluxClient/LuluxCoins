@@ -94,17 +94,34 @@ export class MusicManager {
 
     private setupEventListeners() {
         this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
-            if (this.loopRemaining > 0) {
-                this.loopRemaining--;
-                this.playCurrentSong();
-            } else {
-                this.playNext();
+            console.log('AudioPlayer est devenu Idle');
+            if (this.currentItem) {
+                if (this.loopRemaining > 0) {
+                    console.log('Mode répétition actif, répétitions restantes:', this.loopRemaining);
+                    this.loopRemaining--;
+                    this.playCurrentSong();
+                } else {
+                    console.log('Passage à la chanson suivante');
+                    this.playNext();
+                }
+            }
+        });
+
+        this.audioPlayer.on(AudioPlayerStatus.Playing, () => {
+            console.log('AudioPlayer commence à jouer:', this.currentItem?.title);
+            if (this.currentItem) {
+                const embed = new EmbedBuilder()
+                    .setColor('#00ff00')
+                    .setTitle('🎵 Lecture en cours')
+                    .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
+                this.sendMessage(embed);
             }
         });
 
         this.audioPlayer.on('error', error => {
-            console.error('Erreur de lecture:', error);
+            console.error('Erreur AudioPlayer:', error);
             this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
+            this.playNext();
         });
     }
 
@@ -174,7 +191,10 @@ export class MusicManager {
     }
 
     async playNext() {
+        console.log('PlayNext appelé. Queue length:', this.queue.length);
+        
         if (this.queue.length === 0) {
+            console.log('File d\'attente vide');
             this.currentItem = null;
             const embed = new EmbedBuilder()
                 .setColor('#ffa500')
@@ -182,51 +202,29 @@ export class MusicManager {
                 .setDescription('Plus aucune musique dans la file d\'attente')
                 .setTimestamp();
 
-            if (this.musicChannel) {
-                await this.musicChannel.send({ embeds: [embed] });
-            }
+            this.sendMessage(embed);
             return;
         }
 
         this.currentItem = this.queue.shift()!;
-        await this.playCurrentSong();
+        console.log('Nouvelle chanson sélectionnée:', this.currentItem.title);
         this.skipVotes.clear();
-
-        const embed = new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle('🎵 Lecture en cours')
-            .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`)
-            .addFields(
-                { name: '⏱️ Durée', value: this.currentItem.duration, inline: true },
-                { name: 'Demandé par', value: this.currentItem.requestedBy.username, inline: true }
-            )
-            .setTimestamp();
-
-        this.sendMessage(embed);
+        await this.playCurrentSong();
     }
 
     async playCurrentSong() {
-        if (!this.currentItem) return;
+        if (!this.currentItem) {
+            console.log('Aucun item à jouer');
+            return;
+        }
+        
         try {
             const audioUrl = this.currentItem.audioUrl;
             if (!audioUrl) {
                 throw new Error('No audio URL available');
             }
 
-            // Vérifier FFmpeg
-            try {
-                const ffmpegVersion = execSync('ffmpeg -version').toString();
-                console.log('FFmpeg est installé:', ffmpegVersion.split('\n')[0]);
-            } catch (error) {
-                console.error('FFmpeg n\'est pas installé!');
-                throw new Error('FFmpeg is not installed');
-            }
-
-            console.log('Tentative de lecture:', {
-                title: this.currentItem.title,
-                url: audioUrl.substring(0, 100) + '...'
-            });
-
+            console.log('Création de la ressource audio pour:', this.currentItem.title);
             const resource = createAudioResource(audioUrl, {
                 inputType: StreamType.Arbitrary,
                 inlineVolume: true
@@ -237,8 +235,10 @@ export class MusicManager {
                 return;
             }
 
+            console.log('Lecture de la ressource audio');
             this.connection.subscribe(this.audioPlayer);
             this.audioPlayer.play(resource);
+
         } catch (error) {
             console.error('Erreur détaillée:', error);
             this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');

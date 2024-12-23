@@ -84,71 +84,43 @@ export async function play(interaction: ChatInputCommandInteraction) {
             noWarnings: true,
             preferFreeFormats: true,
             skipDownload: true,
-            format: 'bestaudio[ext=m4a]/bestaudio/best',
+            format: 'bestaudio/best',
             cookies: cookiesPath,
             getUrl: true,
             addHeader: [
-                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                'Accept-Language:en-US,en;q=0.9',
-                'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
             ],
-            sleepInterval: 2,
+            extractAudio: true,
+            audioFormat: 'mp3',
+            audioQuality: 0,
             noCheckCertificates: true,
             callHome: false,
-            youtubeSkipDashManifest: true
+            maxDownloads: 1,
+            maxFilesize: '50m'
         }) as any;
 
         // Log de débogage
         console.log('YouTube-DL response:', JSON.stringify(info, null, 2));
 
-        // Amélioration de la logique d'extraction de l'URL audio
+        // Simplifier la logique d'extraction de l'URL
         let audioUrl: string | undefined;
 
         if (typeof info === 'string') {
-            // Si info est une string, c'est probablement l'URL directe
             audioUrl = info;
-        } else if (typeof info === 'object' && info !== null) {
-            // Vérifier d'abord l'URL directe
-            if (typeof info.url === 'string' && info.url) {
-                audioUrl = info.url;
-            } 
-            // Sinon, chercher dans les formats
-            else if (Array.isArray(info.formats)) {
-                console.log('Available formats:', JSON.stringify(info.formats, null, 2));
-                const audioFormats = info.formats
-                    .filter((f: any) => f && typeof f === 'object' && f.url)
-                    .filter((f: any) => {
-                        // Préférer les formats audio uniquement
-                        if (f.acodec === 'none' || f.acodec === null) return false;
-                        // Éviter les formats vidéo
-                        if (f.format_note?.toLowerCase().includes('video')) return false;
-                        return true;
-                    })
-                    .sort((a: any, b: any) => {
-                        // Trier par qualité audio (préférer les formats avec meilleure qualité)
-                        const aQuality = a.abr || 0;
-                        const bQuality = b.abr || 0;
-                        return bQuality - aQuality;
-                    });
+        } else if (info?.url) {
+            audioUrl = info.url;
+        } else if (info?.formats?.length > 0) {
+            const audioFormats = info.formats
+                .filter((f: any) => f?.url && (!f.format_note?.includes('video')))
+                .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
 
-                if (audioFormats.length === 0) {
-                    console.error('No valid audio formats found:', info.formats);
-                    throw new Error('Aucun format audio valide trouvé');
-                }
-
-                audioUrl = audioFormats[0].url as string;
-
-                // Ajouter une vérification de la longueur de l'URL
-                if (audioUrl.length > 2000) {
-                    console.error('Audio URL too long:', audioUrl.length);
-                    throw new Error('URL audio trop longue');
-                }
+            if (audioFormats.length > 0) {
+                audioUrl = audioFormats[0].url;
             }
         }
 
         if (!audioUrl) {
-            console.error('No valid audio URL found in response');
-            throw new Error('No valid audio format found');
+            throw new Error('Format audio invalide - essaie une autre vidéo');
         }
 
         if (!musicManager.getCurrentVoiceChannel()) {

@@ -80,60 +80,28 @@ export async function play(interaction: ChatInputCommandInteraction) {
         const cookiesPath = path.join(process.cwd(), 'cookies.txt');
 
         const info = await youtubeDl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            preferFreeFormats: true,
-            skipDownload: true,
-            format: 'bestaudio/best',
+            dumpJson: true,
+            quiet: true,
+            format: 'bestaudio[ext=m4a]/bestaudio',
             cookies: cookiesPath,
-            getUrl: true,
-            addHeader: [
-                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ],
-            extractAudio: true,
-            audioFormat: 'mp3',
-            audioQuality: 0,
             noCheckCertificates: true,
             callHome: false,
-            maxDownloads: 1,
-            maxFilesize: '50m',
-            writeInfoJson: true,
-            addMetadata: true,
-            embedThumbnail: false,
-            noPlaylist: true
+            extractAudio: true,
+            audioFormat: 'm4a',
+            addHeader: [
+                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            ]
         }) as any;
 
-        // Log de débogage
-        console.log('YouTube-DL response:', JSON.stringify(info, null, 2));
+        // Log minimal
+        console.log('Tentative de lecture de:', url);
 
-        // Modification de la logique d'extraction des métadonnées
-        let title = 'Unknown Title';
-        let duration = 0;
-        let audioUrl: string | undefined;
-
-        if (typeof info === 'string') {
-            audioUrl = info;
-            // Essayer d'extraire le titre de l'URL YouTube
-            try {
-                const videoId = url.split('v=')[1].split('&')[0];
-                const videoInfo = await youtubeDl(url, {
-                    dumpSingleJson: true,
-                    skipDownload: true,
-                    noPlaylist: true
-                }) as any;
-                title = videoInfo.title || 'Unknown Title';
-                duration = videoInfo.duration || 0;
-            } catch (error) {
-                console.error('Error fetching video metadata:', error);
-            }
-        } else if (typeof info === 'object' && info !== null) {
-            title = info.title || 'Unknown Title';
-            duration = info.duration || 0;
-            audioUrl = info.url || (info.formats && info.formats[0]?.url);
-        }
+        let title = info.title || 'Unknown Title';
+        let duration = info.duration || 0;
+        let audioUrl = info.url || info.formats?.[0]?.url;
 
         if (!audioUrl) {
-            throw new Error('Format audio invalide - essaie une autre vidéo');
+            throw new Error('Format audio invalide - URL manquante');
         }
 
         if (!musicManager.getCurrentVoiceChannel()) {

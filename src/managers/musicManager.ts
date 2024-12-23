@@ -6,8 +6,6 @@ import path from 'path';
 import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
 import { execSync } from 'child_process';
-import { stream as playDlStream, setToken } from 'play-dl';
-import { joinVoiceChannel } from '@discordjs/voice';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -195,7 +193,7 @@ export class MusicManager {
         this.loopRemaining = count;
         const message = count > 0 
             ? `🔄 La musique actuelle sera répétée ${count} fois.`
-            : '️Mode répétition désactivé.';
+            : '️ Mode répétition désactivé.';
         this.sendMessage(message);
     }
 
@@ -226,54 +224,51 @@ export class MusicManager {
             console.log('Aucun item à jouer');
             return;
         }
-
+        
         try {
+            const audioUrl = this.currentItem.audioUrl;
+            if (!audioUrl) {
+                throw new Error('No audio URL available');
+            }
+
             if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection perdue - tentative de reconnexion...');
-                const voiceChannel = this.getCurrentVoiceChannel();
-                if (voiceChannel) {
-                    this.setConnection(joinVoiceChannel({
-                        channelId: voiceChannel.id,
-                        guildId: voiceChannel.guild.id,
-                        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-                        selfDeaf: true
-                    }));
-                } else {
-                    console.error('Impossible de se reconnecter - canal vocal introuvable');
-                    return;
-                }
+                console.error('Connection perdue - impossible de jouer');
+                return;
             }
 
-            console.log('Création du stream pour:', this.currentItem.title);
-
-            const { stream, type } = await playDlStream(this.currentItem.url, {
-                discordPlayerCompatibility: true,
-                quality: 2,
-                htmldata: false
-            });
-
-            const resource = createAudioResource(stream, {
-                inputType: type,
-                inlineVolume: true
-            });
-
-            if (resource.volume) {
-                resource.volume.setVolume(0.5);
+            // Vérifier que FFmpeg est disponible
+            try {
+                execSync('ffmpeg -version');
+            } catch (error) {
+                console.error('FFmpeg n\'est pas disponible:', error);
+                throw new Error('FFmpeg not available');
             }
 
-            this.audioPlayer.stop();
+            console.log('Création de la ressource audio pour:', this.currentItem.title);
+            
+            // Utiliser des options plus spécifiques pour FFmpeg
+            const resource = createAudioResource(audioUrl, {
+                inputType: StreamType.Arbitrary,
+                inlineVolume: true,
+                silencePaddingFrames: 5
+            });
+
+            // S'assurer que la connexion est active
+            this.connection.subscribe(this.audioPlayer);
+            
+            // Réinitialiser l'état de lecture
             this.isPlaying = false;
-            if (this.connection) {
-                this.connection.subscribe(this.audioPlayer);
-            }
+            
+            // Démarrer la lecture
             this.audioPlayer.play(resource);
-
+            
             console.log('Lecture démarrée avec succès');
 
         } catch (error) {
             console.error('Erreur détaillée:', error);
             this.isPlaying = false;
             this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
+            // Attendre un peu avant de passer à la suivante
             setTimeout(() => this.playNext(), 1000);
         }
     }
@@ -326,9 +321,7 @@ export class MusicManager {
         }
         this.connection = connection;
         this.isPlaying = false;
-        if (this.connection) {
-            this.connection.subscribe(this.audioPlayer);
-        }
+        connection.subscribe(this.audioPlayer);
     }
 
     disconnect() {
@@ -346,7 +339,7 @@ export class MusicManager {
 
     getCurrentVoiceChannel(): VoiceChannel | null {
         return this.connection?.joinConfig.channelId 
-            ? (this.connection.joinConfig as any).channel ?? null
+            ? (this.connection.joinConfig as any).channel
             : null;
     }
 

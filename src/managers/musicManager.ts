@@ -1,4 +1,4 @@
-import { VoiceConnection, AudioPlayer, createAudioPlayer, AudioPlayerStatus, createAudioResource } from '@discordjs/voice';
+import { VoiceConnection, AudioPlayer, createAudioPlayer, AudioPlayerStatus, createAudioResource, StreamType } from '@discordjs/voice';
 import { TextChannel, EmbedBuilder, Client, GatewayIntentBits, VoiceChannel, GuildMember, VoiceBasedChannel } from 'discord.js';
 import { QueueItem, MusicState, SkipVoteStatus } from '../types/musicTypes';
 import fs from 'fs/promises';
@@ -211,8 +211,34 @@ export class MusicManager {
             if (!audioUrl) {
                 throw new Error('No audio URL available');
             }
-            const resource = createAudioResource(audioUrl);
+
+            console.log('Tentative de lecture:', {
+                title: this.currentItem.title,
+                url: audioUrl.substring(0, 100) + '...'
+            });
+
+            const resource = createAudioResource(audioUrl, {
+                inlineVolume: true,
+                inputType: StreamType.Arbitrary
+            });
+
+            if (!resource) {
+                throw new Error('Failed to create audio resource');
+            }
+
+            if (!this.connection || this.connection.state.status === 'destroyed') {
+                console.error('Connection is not available or destroyed');
+                return;
+            }
+
             this.audioPlayer.play(resource);
+            
+            const embed = new EmbedBuilder()
+                .setColor('#00ff00')
+                .setTitle('🎵 Lecture en cours')
+                .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
+            
+            this.sendMessage(embed);
         } catch (error) {
             console.error('Erreur de lecture:', error);
             this.sendMessage('❌ Impossible de lire cette musique. Passage à la suivante...');

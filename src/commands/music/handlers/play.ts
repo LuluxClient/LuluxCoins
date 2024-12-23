@@ -117,10 +117,31 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 console.log('Available formats:', JSON.stringify(info.formats, null, 2));
                 const audioFormats = info.formats
                     .filter((f: any) => f && typeof f === 'object' && f.url)
-                    .filter((f: any) => !f.format_note?.includes('video'));
+                    .filter((f: any) => {
+                        // Préférer les formats audio uniquement
+                        if (f.acodec === 'none' || f.acodec === null) return false;
+                        // Éviter les formats vidéo
+                        if (f.format_note?.toLowerCase().includes('video')) return false;
+                        return true;
+                    })
+                    .sort((a: any, b: any) => {
+                        // Trier par qualité audio (préférer les formats avec meilleure qualité)
+                        const aQuality = a.abr || 0;
+                        const bQuality = b.abr || 0;
+                        return bQuality - aQuality;
+                    });
 
-                if (audioFormats.length > 0) {
-                    audioUrl = audioFormats[0].url;
+                if (audioFormats.length === 0) {
+                    console.error('No valid audio formats found:', info.formats);
+                    throw new Error('Aucun format audio valide trouvé');
+                }
+
+                audioUrl = audioFormats[0].url as string;
+
+                // Ajouter une vérification de la longueur de l'URL
+                if (audioUrl.length > 2000) {
+                    console.error('Audio URL too long:', audioUrl.length);
+                    throw new Error('URL audio trop longue');
                 }
             }
         }
@@ -152,7 +173,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 id: interaction.user.id,
                 username: interaction.user.username,
             },
-            audioUrl
+            audioUrl: audioUrl as string
         });
 
         const embed = new EmbedBuilder()

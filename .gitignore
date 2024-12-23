@@ -7,3 +7,4 @@ status.json
 harassment.json 
 src/data/musicBans.json
 cookies.txt
+src/data/*.json

@@ -7,6 +7,7 @@ import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
 import { execSync } from 'child_process';
 import { stream as playDlStream, setToken } from 'play-dl';
+import { joinVoiceChannel } from '@discordjs/voice';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -194,7 +195,7 @@ export class MusicManager {
         this.loopRemaining = count;
         const message = count > 0 
             ? `🔄 La musique actuelle sera répétée ${count} fois.`
-            : '️ Mode répétition désactivé.';
+            : '️Mode répétition désactivé.';
         this.sendMessage(message);
     }
 
@@ -228,13 +229,23 @@ export class MusicManager {
 
         try {
             if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection perdue - impossible de jouer');
-                return;
+                console.error('Connection perdue - tentative de reconnexion...');
+                const voiceChannel = this.getCurrentVoiceChannel();
+                if (voiceChannel) {
+                    this.setConnection(joinVoiceChannel({
+                        channelId: voiceChannel.id,
+                        guildId: voiceChannel.guild.id,
+                        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+                        selfDeaf: true
+                    }));
+                } else {
+                    console.error('Impossible de se reconnecter - canal vocal introuvable');
+                    return;
+                }
             }
 
             console.log('Création du stream pour:', this.currentItem.title);
 
-            // Créer le stream avec play-dl
             const { stream, type } = await playDlStream(this.currentItem.url, {
                 discordPlayerCompatibility: true,
                 quality: 2,
@@ -250,16 +261,13 @@ export class MusicManager {
                 resource.volume.setVolume(0.5);
             }
 
-            // Nettoyer l'ancien état
             this.audioPlayer.stop();
             this.isPlaying = false;
-
-            // Configurer la nouvelle connexion
-            this.connection.subscribe(this.audioPlayer);
-            
-            // Démarrer la lecture
+            if (this.connection) {
+                this.connection.subscribe(this.audioPlayer);
+            }
             this.audioPlayer.play(resource);
-            
+
             console.log('Lecture démarrée avec succès');
 
         } catch (error) {
@@ -318,7 +326,9 @@ export class MusicManager {
         }
         this.connection = connection;
         this.isPlaying = false;
-        connection.subscribe(this.audioPlayer);
+        if (this.connection) {
+            this.connection.subscribe(this.audioPlayer);
+        }
     }
 
     disconnect() {
@@ -336,7 +346,7 @@ export class MusicManager {
 
     getCurrentVoiceChannel(): VoiceChannel | null {
         return this.connection?.joinConfig.channelId 
-            ? (this.connection.joinConfig as any).channel
+            ? (this.connection.joinConfig as any).channel ?? null
             : null;
     }
 

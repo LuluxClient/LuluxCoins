@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { VendettaDoxConfig } from './types/doxTypes';
 
 export const config = {
     token: process.env.BOT_TOKEN!,
@@ -29,21 +30,36 @@ export const config = {
         doxInfo: [
             {
                 type: 'message',
-                content: 'Premier dox sur Vendetta...'
+                content: 'Nom prénom: Valention Cartier'
             },
             {
                 type: 'image',
-                content: 'URL_DE_L_IMAGE_1'
+                content: 'https://s1.static-footeo.com/1200/uploads/us-arcey-foot/players/valentin-cartier7__pcp130.jpg',
+                title: 'Messir vendégras IRL'
             },
             {
                 type: 'message',
-                content: 'Deuxième révélation choquante...'
+                content: 'Adresse: Joydevpur - Tangail - Jamalpur Hwy Inde'
+            },
+            {
+                type: 'message',
+                content: 'Date de naissance: 11 Septembre 2001 New York'
+            },
+            {
+                type: 'message',
+                content: 'Numéro de téléphone: +1234567890'
+            },
+            {
+                type: 'image',
+                content: 'https://www.francebleu.fr/s3/cruiser-production/2022/02/1e6c8272-d0b4-4a2f-a033-dd13ae3a2c8d/1200x680_000_1b03ma.webp',
+                title: 'Le daron'
             },
             {
                 type: 'link',
-                content: 'https://example.com/evidence1'
+                content: 'https://example.com/evidence1',
+                title: 'Preuve supplémentaire sur Vendetta'
             }
         ],
         finalLink: 'https://example.com/vendetta-full-dox-2024'
-    }
+    } as VendettaDoxConfig
 }; 

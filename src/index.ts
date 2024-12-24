@@ -4,7 +4,7 @@ import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
 import { statusManager } from './database/statusManager';
 import { harassmentManager } from './managers/harassmentManager';
-import { ChristmasManager } from './managers/christmasManager';
+import { christmasManager } from './managers/christmasManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
 import * as luluxcoins from './commands/luluxcoins';
@@ -14,6 +14,7 @@ import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
+import * as doxtest from './commands/doxtest';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
 
@@ -29,11 +30,9 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, doxtest].forEach(command => {
     commands.set(command.data.name, command);
 });
-
-const christmasManager = new ChristmasManager();
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
@@ -127,7 +126,7 @@ client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
 
 client.login(config.token);
 
-// Gestion de l'arr��t propre
+// Gestion de l'arrêt propre
 process.on('SIGINT', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();

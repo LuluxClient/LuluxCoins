@@ -1,5 +1,6 @@
 import { Client, TextChannel, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, Message, ButtonInteraction } from 'discord.js';
 import { config } from '../config';
+import { DoxItem } from '../types/doxTypes';
 
 export class ChristmasManager {
     private client: Client;
@@ -7,6 +8,7 @@ export class ChristmasManager {
     private currentDoxIndex: number = -1;
     private revealTimeout: NodeJS.Timeout | null = null;
     private updateInterval: NodeJS.Timeout | null = null;
+    private testMode: boolean = false;
 
     constructor() {
         this.client = null!;
@@ -17,6 +19,9 @@ export class ChristmasManager {
     }
 
     private getRemainingTime(): number {
+        if (this.testMode) {
+            return 0; // Force countdown completion in test mode
+        }
         const christmasDate = new Date(config.vendettaDox.christmasDate);
         const now = new Date();
         return Math.max(0, christmasDate.getTime() - now.getTime());
@@ -42,7 +47,7 @@ export class ChristmasManager {
                 .setColor('#ff0000')
                 .setTitle('🎄 COUNTDOWN AVANT LE DOX DE VENDETTA 🎄')
                 .setDescription(`Temps restant: **${this.formatTime(remainingTime)}**`)
-                .setFooter({ text: 'Le dox sera révélé à Noël 2024' });
+                .setFooter({ text: this.testMode ? 'TEST MODE - Le dox sera révélé à Noël 2024' : 'Le dox sera révélé à Noël 2024' });
 
             if (remainingTime === 0) {
                 const row = new ActionRowBuilder<ButtonBuilder>()
@@ -83,6 +88,7 @@ export class ChristmasManager {
                 .setDescription(`Voici le lien complet du dox:\n${config.vendettaDox.finalLink}`);
 
             await interaction.update({ embeds: [finalEmbed], components: [] });
+            this.testMode = false; // Reset test mode after completion
             return;
         }
 
@@ -95,10 +101,11 @@ export class ChristmasManager {
                 embed.setDescription(doxInfo.content);
                 break;
             case 'image':
-                embed.setImage(doxInfo.content);
+                embed.setDescription(doxInfo.title || 'Photo de Vendetta')
+                    .setImage(doxInfo.content);
                 break;
             case 'link':
-                embed.setDescription(`[Cliquez ici pour voir l'information](${doxInfo.content})`);
+                embed.setDescription(`${doxInfo.title || 'Information supplémentaire'}\n\n[Cliquez ici pour voir l'information](${doxInfo.content})`);
                 break;
         }
 
@@ -133,7 +140,16 @@ export class ChristmasManager {
     }
 
     async startCountdown() {
-        // Update immediately then start interval
+        this.testMode = false;
+        this.currentDoxIndex = -1;
+        if (this.countdownMessage) {
+            try {
+                await this.countdownMessage.delete();
+            } catch (error) {
+                console.error('Error deleting old message:', error);
+            }
+        }
+        this.countdownMessage = null;
         await this.updateCountdown();
         this.updateInterval = setInterval(() => this.updateCountdown(), 1000);
     }
@@ -145,11 +161,29 @@ export class ChristmasManager {
         }
     }
 
+    async triggerCountdownComplete() {
+        this.testMode = true;
+        this.currentDoxIndex = -1;
+        if (this.countdownMessage) {
+            try {
+                await this.countdownMessage.delete();
+            } catch (error) {
+                console.error('Error deleting old message:', error);
+            }
+        }
+        this.countdownMessage = null;
+        await this.updateCountdown();
+    }
+
     cleanup() {
         this.stopCountdown();
         if (this.revealTimeout) {
             clearTimeout(this.revealTimeout);
             this.revealTimeout = null;
         }
+        this.testMode = false;
     }
-} 
+}
+
+// Export a single instance to be used across the application
+export const christmasManager = new ChristmasManager(); 

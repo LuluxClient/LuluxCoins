@@ -4,6 +4,7 @@ import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
 import { statusManager } from './database/statusManager';
 import { harassmentManager } from './managers/harassmentManager';
+import { ChristmasManager } from './managers/christmasManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
 import * as luluxcoins from './commands/luluxcoins';
@@ -31,6 +32,8 @@ const commands = new Collection<string, { execute: (interaction: ChatInputComman
 [balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music].forEach(command => {
     commands.set(command.data.name, command);
 });
+
+const christmasManager = new ChristmasManager();
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
@@ -72,9 +75,17 @@ client.once(Events.ClientReady, async () => {
     } catch (error) {
         console.error('Erreur lors de la configuration du canal de musique:', error);
     }
+    
+    christmasManager.setClient(client);
+    await christmasManager.startCountdown();
 });
 
 client.on(Events.InteractionCreate, async interaction => {
+    if (interaction.isButton()) {
+        await christmasManager.handleInteraction(interaction);
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = commands.get(interaction.commandName);
@@ -116,15 +127,17 @@ client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
 
 client.login(config.token);
 
-// Gestion de l'arrêt propre
+// Gestion de l'arr��t propre
 process.on('SIGINT', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();
+    christmasManager.cleanup();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();
+    christmasManager.cleanup();
     process.exit(0);
 }); 

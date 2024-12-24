@@ -23,4 +23,27 @@ export const config = {
         },
     ],
     musicChannelId: '1320439761873272844',
+    vendettaDox: {
+        countdownChannelId: '1179116200073117716',
+        christmasDate: '2024-12-25T00:00:00',
+        doxInfo: [
+            {
+                type: 'message',
+                content: 'Premier dox sur Vendetta...'
+            },
+            {
+                type: 'image',
+                content: 'URL_DE_L_IMAGE_1'
+            },
+            {
+                type: 'message',
+                content: 'Deuxième révélation choquante...'
+            },
+            {
+                type: 'link',
+                content: 'https://example.com/evidence1'
+            }
+        ],
+        finalLink: 'https://example.com/vendetta-full-dox-2024'
+    }
 }; 

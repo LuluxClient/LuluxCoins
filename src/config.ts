@@ -29,25 +29,24 @@ export const config = {
         christmasDate: '2024-12-25T00:00:00',
         doxInfo: [
             {
-                type: 'message',
-                content: 'Nom prénom: Valention Cartier'
+                type: 'image',
+                content: 'https://s1.static-footeo.com/1200/uploads/us-arcey-foot/players/valentin-cartier7__pcp130.jpg',
+                title: 'Nom prénom: Valention Cartier'
             },
             {
                 type: 'image',
-                content: 'https://s1.static-footeo.com/1200/uploads/us-arcey-foot/players/valentin-cartier7__pcp130.jpg',
-                title: 'Messir vendégras IRL'
+                image: 'https://i.gyazo.com/c6c5ce9624124653a35be22fc159a95c.jpg',
+                title: 'Adresse: Joydevpur - Tangail - Jamalpur Hwy Inde'
             },
             {
-                type: 'message',
-                content: 'Adresse: Joydevpur - Tangail - Jamalpur Hwy Inde'
+                type: 'image',
+                image: 'https://reporterre.net/local/cache-gd2/94/2fca9f5205a481457f57f2070c19f9.jpg?1730141535',
+                title: 'Date de naissance: 11 Septembre 2001 New York (il a 23 ans pour les autistes)'
             },
             {
-                type: 'message',
-                content: 'Date de naissance: 11 Septembre 2001 New York'
-            },
-            {
-                type: 'message',
-                content: 'Numéro de téléphone: +1234567890'
+                type: 'image',
+                image: 'https://www.digitaltrends.com/wp-content/uploads/2023/12/Fortnite_20231204125818.jpg?resize=1000%2C600&p=1',
+                title: 'Numéro de téléphone: 02 43 95 00 17'
             },
             {
                 type: 'image',
@@ -56,10 +55,10 @@ export const config = {
             },
             {
                 type: 'link',
-                content: 'https://example.com/evidence1',
-                title: 'Preuve supplémentaire sur Vendetta'
+                content: 'https://www.youtube.com/@vendettaQ_Q.',
+                title: 'Sa chaine Youtube'
             }
         ],
-        finalLink: 'https://example.com/vendetta-full-dox-2024'
+        finalLink: 'https://docs.google.com/document/d/147GYeAkBiwEujJLIhjz2dmgWYluDTE_F9Uh6PRkysnE/edit?usp=sharing'
     } as VendettaDoxConfig
 }; 

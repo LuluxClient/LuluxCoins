@@ -9,6 +9,7 @@ export class ChristmasManager {
     private revealTimeout: NodeJS.Timeout | null = null;
     private updateInterval: NodeJS.Timeout | null = null;
     private testMode: boolean = false;
+    private lastUpdate: number = 0;
 
     constructor() {
         this.client = null!;
@@ -37,12 +38,21 @@ export class ChristmasManager {
         return `${days}j ${hours}h ${minutes}m ${remainingSeconds}s`;
     }
 
-    private async updateCountdown() {
+    private async updateCountdown(force: boolean = false) {
         try {
+            const now = Date.now();
+            const remainingTime = this.getRemainingTime();
+            
+            // Only update if forced or if a second has passed
+            if (!force && now - this.lastUpdate < 1000) {
+                return;
+            }
+            
+            this.lastUpdate = now;
+
             const channel = await this.client.channels.fetch(config.vendettaDox.countdownChannelId) as TextChannel;
             if (!channel) return;
 
-            const remainingTime = this.getRemainingTime();
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('🎄 COUNTDOWN AVANT LE DOX DE VENDETTA 🎄')
@@ -150,8 +160,17 @@ export class ChristmasManager {
             }
         }
         this.countdownMessage = null;
-        await this.updateCountdown();
-        this.updateInterval = setInterval(() => this.updateCountdown(), 1000);
+        this.lastUpdate = 0;
+        await this.updateCountdown(true);
+        
+        // Calculate the delay to start at the next second
+        const now = Date.now();
+        const delay = 1000 - (now % 1000);
+        
+        // Start the interval at the beginning of the next second
+        setTimeout(() => {
+            this.updateInterval = setInterval(() => this.updateCountdown(), 1000);
+        }, delay);
     }
 
     stopCountdown() {
@@ -172,7 +191,8 @@ export class ChristmasManager {
             }
         }
         this.countdownMessage = null;
-        await this.updateCountdown();
+        this.lastUpdate = 0;
+        await this.updateCountdown(true);
     }
 
     cleanup() {

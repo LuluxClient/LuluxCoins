@@ -117,6 +117,15 @@ export class ChristmasManager {
     async handleInteraction(interaction: ButtonInteraction) {
         if (!interaction.isButton()) return;
 
+        // Check if the user has permission
+        if (interaction.user.id !== config.ownerID) {
+            await interaction.reply({
+                content: 'Nique ta mère on attend vendetta fils de pute',
+                ephemeral: true
+            });
+            return;
+        }
+
         switch (interaction.customId) {
             case 'vendetta_dox':
             case 'next_dox':

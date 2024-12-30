@@ -21,7 +21,7 @@ export class PoliticsManager {
         'Nique ta mère avec la politique',
     ];
     private lastMessageTime: number = 0;
-    private readonly cooldownDuration = 1 * 60 * 1000; // 1 minute in milliseconds
+    private readonly cooldownDuration = 0.5 * 60 * 1000; // 30 seconds in milliseconds
     private isInitialized: boolean = false;
 
     constructor() {

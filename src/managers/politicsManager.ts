@@ -2,7 +2,7 @@ import { Message } from 'discord.js';
 
 export class PoliticsManager {
     private readonly targetUserId = '634001864073019392';
-    private readonly triggerWords = ['lfi', 'melanchon', 'bardella', 'rn', 'vote', 'rassemblement', 'politique', 'tg', 'gueule', 'article'];
+    private readonly triggerWords = ['lfi', 'melanchon', 'bardella', 'rn', 'vote', 'rassemblement', 'politique', 'tg', 'gueule', 'article', 'marine', 'lepen'];
     private readonly responses = [
         'Ferme ta gueule fils de pute',
         'On s\'en bat les couilles',

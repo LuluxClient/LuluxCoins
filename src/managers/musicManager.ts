@@ -65,13 +65,6 @@ export class MusicManager {
 
     setMusicChannel(channel: TextChannel) {
         this.musicChannel = channel;
-        const embed = new EmbedBuilder()
-            .setColor('#00ff00')
-            .setTitle('✅ Configuration réussie')
-            .setDescription(`Canal de musique configuré sur ${channel.name}`)
-            .setTimestamp();
-
-        this.sendMessage(embed);
     }
 
     async banUser(userId: string) {

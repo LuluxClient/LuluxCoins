@@ -11,7 +11,7 @@ export class PoliticsManager {
         'Nique ta mère avec la politique',
     ];
     private lastMessageTime: number = 0;
-    private readonly cooldownDuration = 3 * 60 * 1000; // 3 minutes in milliseconds
+    private readonly cooldownDuration = 1 * 60 * 1000; // 3 minutes in milliseconds
 
     private getRandomResponse(): string {
         return this.responses[Math.floor(Math.random() * this.responses.length)];

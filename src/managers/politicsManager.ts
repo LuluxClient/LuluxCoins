@@ -101,6 +101,13 @@ export class PoliticsManager {
         return this.enabled;
     }
 
+    getCooldownRemaining(): number {
+        const now = Date.now();
+        const timeSinceLastMessage = now - this.lastMessageTime;
+        const remainingTime = Math.max(0, this.cooldownDuration - timeSinceLastMessage);
+        return Math.ceil(remainingTime / 1000); // Return remaining seconds
+    }
+
     // Add a new trigger word
     async addTriggerWord(word: string): Promise<boolean> {
         await this.init();

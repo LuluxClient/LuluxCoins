@@ -104,8 +104,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         case 'status':
             const enabled = await politicsManager.isEnabled();
+            const cooldownRemaining = politicsManager.getCooldownRemaining();
+            const statusMessage = [
+                `Politics filter is currently ${enabled ? 'enabled' : 'disabled'}`,
+                cooldownRemaining > 0 ? `Cooldown: ${cooldownRemaining} seconds remaining` : 'No cooldown active'
+            ].join('\n');
+            
             await interaction.reply({
-                content: `Politics filter is currently ${enabled ? 'enabled' : 'disabled'}`,
+                content: statusMessage,
                 ephemeral: true
             });
             break;

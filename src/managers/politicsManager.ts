@@ -3,15 +3,13 @@ import { Message } from 'discord.js';
 export class PoliticsManager {
     private readonly targetUserId = '273898521344606208';
     // private readonly targetUserId = '634001864073019392';
-    private readonly triggerWords = ['lfi', 'melanchon', 'bardella'];
+    private readonly triggerWords = ['lfi', 'melanchon', 'bardella', 'rn', 'vote', 'rassemblement', 'politique', 'tg', 'gueule'];
     private readonly responses = [
-        'Ferme ta gueule avec la politique',
-        'On s\'en bat les couilles de la politique',
-        'Ta gueule avec la politique fdp',
-        'Politique = ratio',
+        'Ferme ta gueule fils de pute',
+        'On s\'en bat les couilles',
+        'Bardella > Melanchon',
+        'T\'es brainwashed par les médias de gauche',
         'Nique ta mère avec la politique',
-        'Politique = 🤓',
-        'Politique = 🤡'
     ];
     private lastMessageTime: number = 0;
     private readonly cooldownDuration = 3 * 60 * 1000; // 3 minutes in milliseconds
@@ -32,9 +30,18 @@ export class PoliticsManager {
             return;
         }
 
-        // Check if message contains any trigger words (case insensitive)
+        // Check if message contains any trigger words or their variations (case insensitive)
         const messageContent = message.content.toLowerCase();
-        const hasTriggerWord = this.triggerWords.some(word => messageContent.includes(word.toLowerCase()));
+        const messageWords = messageContent.split(/\s+/); // Split by whitespace
+        
+        const hasTriggerWord = this.triggerWords.some(trigger => 
+            messageWords.some(word => 
+                word.includes(trigger) || // Exact match or contains
+                word.startsWith(trigger) || // Starts with (e.g., "vote" matches "voted", "voting")
+                word.endsWith(trigger) || // Ends with
+                (trigger.length > 4 && word.includes(trigger.slice(0, -1))) // Partial match for longer words
+            )
+        );
 
         if (hasTriggerWord) {
             this.lastMessageTime = now;

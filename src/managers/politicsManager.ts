@@ -20,6 +20,7 @@ export class PoliticsManager {
         'T\'es brainwashed par les médias de gauche',
         'Frigiel sera un meilleur président que Melanchon',
         'Ton avis est aussi utile qu\'un joueur Hunk',
+        'https://cdn.discordapp.com/attachments/1179886753461571644/1323436325168349277/1483715-le-candidat-du-parti-la-france-insoumise-lfi-jean-luc-melenchon-lors-d-un-meeting-de-campagne-a-nantes-le-16-janvier-2022.jpg?ex=677481a0&is=67733020&hm=ea3e1c9510e06e36a74cafb8368935aab46e2030fbdc9ed4e869bb64b533ba04&',
         'https://cdn.discordapp.com/attachments/1179886753461571644/1323434250799808594/1723100-jean-luc-melenchon-le-30-juin-2024.jpg?ex=67747fb1&is=67732e31&hm=073edf1c5a9eb0319d4e3c6222a0e2ad18006535a8709022c2dd3c899ca46de1&',
     ];
     private lastMessageTime: number = 0;

@@ -4,7 +4,7 @@ import { db } from './database/databaseManager';
 import { backupManager } from './utils/backup';
 import { statusManager } from './database/statusManager';
 import { harassmentManager } from './managers/harassmentManager';
-import { christmasManager } from './managers/christmasManager';
+import { politicsManager } from './managers/politicsManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
 import * as luluxcoins from './commands/luluxcoins';
@@ -14,7 +14,6 @@ import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
-import * as doxtest from './commands/doxtest';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
 
@@ -30,7 +29,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, doxtest].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music].forEach(command => {
     commands.set(command.data.name, command);
 });
 
@@ -75,13 +74,10 @@ client.once(Events.ClientReady, async () => {
         console.error('Erreur lors de la configuration du canal de musique:', error);
     }
     
-    christmasManager.setClient(client);
-    await christmasManager.startCountdown();
 });
 
 client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isButton()) {
-        await christmasManager.handleInteraction(interaction);
         return;
     }
 
@@ -130,13 +126,16 @@ client.login(config.token);
 process.on('SIGINT', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();
-    christmasManager.cleanup();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();
-    christmasManager.cleanup();
     process.exit(0);
+});
+
+// Add message event handler for politics manager
+client.on(Events.MessageCreate, async message => {
+    await politicsManager.handleMessage(message);
 }); 

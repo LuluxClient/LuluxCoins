@@ -9,6 +9,7 @@ import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
+import * as triggerwords from './commands/triggerwords';
 
 const commands = [
     balance.data,
@@ -20,6 +21,7 @@ const commands = [
     vendesleep.data,
     roux.data,
     music.data,
+    triggerwords.data
 ].map(command => command.toJSON());
 
 const rest = new REST().setToken(config.token);

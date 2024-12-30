@@ -8,3 +8,4 @@ harassment.json
 src/data/musicBans.json
 cookies.txt
 src/data/*.json
+src/data/triggerwords.json

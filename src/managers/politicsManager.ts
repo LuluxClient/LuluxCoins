@@ -18,10 +18,9 @@ export class PoliticsManager {
         'On s\'en bat les couilles',
         'Bardella > Melanchon',
         'T\'es brainwashed par les médias de gauche',
-        'Nique ta mère avec la politique',
-        'Tu es un caca de merde',
         'Frigiel sera un meilleur président que Melanchon',
         'Ton avis est aussi utile qu\'un joueur Hunk',
+        'https://cdn.discordapp.com/attachments/1179886753461571644/1323434250799808594/1723100-jean-luc-melenchon-le-30-juin-2024.jpg?ex=67747fb1&is=67732e31&hm=073edf1c5a9eb0319d4e3c6222a0e2ad18006535a8709022c2dd3c899ca46de1&',
     ];
     private lastMessageTime: number = 0;
     private readonly cooldownDuration = 0.5 * 60 * 1000; // 30 seconds in milliseconds

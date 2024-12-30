@@ -54,7 +54,7 @@ export class PoliticsManager {
                     "lfi", "melanchon", "bardella", "rn", "vote",
                     "rassemblement", "politique", "tg", "gueule",
                     "article", "marine", "lepen", "propagande", "homo",
-                    "désarmé", "police"
+                    "désarmé", "police", "terroriste", "islamiste", "islamophobe"
                 ];
                 this.triggerWords = defaultWords;
                 this.enabled = true;

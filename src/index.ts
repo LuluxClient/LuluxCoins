@@ -14,6 +14,7 @@ import * as initusers from './commands/initusers';
 import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
+import * as triggerwords from './commands/triggerwords';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
 
@@ -29,7 +30,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, triggerwords].forEach(command => {
     commands.set(command.data.name, command);
 });
 
@@ -73,14 +74,13 @@ client.once(Events.ClientReady, async () => {
     } catch (error) {
         console.error('Erreur lors de la configuration du canal de musique:', error);
     }
-    
+
+    // Initialize politicsManager
+    await politicsManager.init();
+    console.log('Politics manager initialized successfully');
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isButton()) {
-        return;
-    }
-
     if (!interaction.isChatInputCommand()) return;
 
     const command = commands.get(interaction.commandName);
@@ -120,6 +120,11 @@ client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
     }
 });
 
+// Add message event handler for politics manager
+client.on(Events.MessageCreate, async message => {
+    await politicsManager.handleMessage(message);
+});
+
 client.login(config.token);
 
 // Gestion de l'arrêt propre
@@ -133,9 +138,4 @@ process.on('SIGTERM', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();
     process.exit(0);
-});
-
-// Add message event handler for politics manager
-client.on(Events.MessageCreate, async message => {
-    await politicsManager.handleMessage(message);
 }); 

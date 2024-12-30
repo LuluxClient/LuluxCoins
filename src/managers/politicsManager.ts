@@ -19,6 +19,9 @@ export class PoliticsManager {
         'Bardella > Melanchon',
         'T\'es brainwashed par les médias de gauche',
         'Nique ta mère avec la politique',
+        'Tu es un caca de merde',
+        'Frigiel sera un meilleur président que Melanchon',
+        'Ton avis est aussi utile qu\'un joueur Hunk',
     ];
     private lastMessageTime: number = 0;
     private readonly cooldownDuration = 0.5 * 60 * 1000; // 30 seconds in milliseconds

@@ -42,6 +42,21 @@ export class PoliticsManager {
         }
     }
 
+    private async forceSave() {
+        // Ensure directory exists before saving
+        const dirPath = path.dirname(this.dbPath);
+        await fs.mkdir(dirPath, { recursive: true });
+
+        const data: TriggerWordsData = { 
+            words: this.triggerWords,
+            enabled: this.enabled
+        };
+
+        // Force write to file
+        await fs.writeFile(this.dbPath, JSON.stringify(data, null, 4));
+        console.log('Force saved data to database');
+    }
+
     private async loadTriggerWords() {
         try {
             // Create data directory if it doesn't exist
@@ -51,8 +66,12 @@ export class PoliticsManager {
             let data: string;
             try {
                 data = await fs.readFile(this.dbPath, 'utf-8');
+                const parsed = JSON.parse(data) as TriggerWordsData;
+                this.triggerWords = parsed.words;
+                this.enabled = parsed.enabled ?? true;
             } catch (error) {
-                // File doesn't exist, create with default words
+                console.log('Creating new triggerwords database...');
+                // File doesn't exist or is invalid, create with default words
                 const defaultWords = [
                     "lfi", "melanchon", "bardella", "rn", "vote",
                     "rassemblement", "politique", "tg", "gueule",
@@ -61,31 +80,14 @@ export class PoliticsManager {
                 ];
                 this.triggerWords = defaultWords;
                 this.enabled = true;
-                await this.saveTriggerWords();
-                return;
+                await this.forceSave();
             }
-
-            const parsed = JSON.parse(data) as TriggerWordsData;
-            this.triggerWords = parsed.words;
-            this.enabled = parsed.enabled ?? true;
         } catch (error) {
-            console.error('Error loading trigger words:', error);
+            console.error('Critical error loading trigger words:', error);
             // If there's any other error, initialize with empty array
             this.triggerWords = [];
             this.enabled = true;
-            await this.saveTriggerWords();
-        }
-    }
-
-    private async saveTriggerWords() {
-        try {
-            const data: TriggerWordsData = { 
-                words: this.triggerWords,
-                enabled: this.enabled
-            };
-            await fs.writeFile(this.dbPath, JSON.stringify(data, null, 4));
-        } catch (error) {
-            console.error('Error saving trigger words:', error);
+            await this.forceSave();
         }
     }
 
@@ -96,7 +98,7 @@ export class PoliticsManager {
     async setEnabled(enabled: boolean): Promise<void> {
         await this.init();
         this.enabled = enabled;
-        await this.saveTriggerWords();
+        await this.forceSave();
     }
 
     async isEnabled(): Promise<boolean> {
@@ -119,7 +121,7 @@ export class PoliticsManager {
             return false;
         }
         this.triggerWords.push(word);
-        await this.saveTriggerWords();
+        await this.forceSave();
         return true;
     }
 
@@ -132,7 +134,7 @@ export class PoliticsManager {
             return false;
         }
         this.triggerWords.splice(index, 1);
-        await this.saveTriggerWords();
+        await this.forceSave();
         return true;
     }
 

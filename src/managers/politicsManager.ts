@@ -19,10 +19,17 @@ export class PoliticsManager {
     ];
     private lastMessageTime: number = 0;
     private readonly cooldownDuration = 1 * 60 * 1000; // 1 minute in milliseconds
+    private isInitialized: boolean = false;
 
     constructor() {
         this.dbPath = path.join(__dirname, '..', 'data', 'triggerwords.json');
-        this.loadTriggerWords();
+    }
+
+    async init() {
+        if (!this.isInitialized) {
+            await this.loadTriggerWords();
+            this.isInitialized = true;
+        }
     }
 
     private async loadTriggerWords() {
@@ -72,6 +79,7 @@ export class PoliticsManager {
 
     // Add a new trigger word
     async addTriggerWord(word: string): Promise<boolean> {
+        await this.init();
         word = word.toLowerCase();
         if (this.triggerWords.includes(word)) {
             return false;
@@ -83,6 +91,7 @@ export class PoliticsManager {
 
     // Remove a trigger word
     async removeTriggerWord(word: string): Promise<boolean> {
+        await this.init();
         word = word.toLowerCase();
         const index = this.triggerWords.indexOf(word);
         if (index === -1) {
@@ -94,11 +103,13 @@ export class PoliticsManager {
     }
 
     // Get all trigger words
-    getTriggerWords(): string[] {
+    async getTriggerWords(): Promise<string[]> {
+        await this.init();
         return [...this.triggerWords];
     }
 
     async handleMessage(message: Message) {
+        await this.init();
         // Ignore bot messages and messages from other users
         if (message.author.bot || message.author.id !== this.targetUserId) {
             return;

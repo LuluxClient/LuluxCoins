@@ -64,7 +64,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             break;
 
         case 'list':
-            const words = politicsManager.getTriggerWords();
+            const words = await politicsManager.getTriggerWords();
             await interaction.reply({
                 content: `Current trigger words:\n${words.join(', ')}`,
                 ephemeral: true

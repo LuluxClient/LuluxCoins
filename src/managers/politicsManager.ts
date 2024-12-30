@@ -4,11 +4,14 @@ import path from 'path';
 
 interface TriggerWordsData {
     words: string[];
+    enabled: boolean;
 }
 
 export class PoliticsManager {
     private readonly targetUserId = '634001864073019392';
+    private readonly allowedUsers = ['295515087731556362', '273898521344606208'];
     private triggerWords: string[] = [];
+    private enabled: boolean = true;
     private readonly dbPath: string;
     private readonly responses = [
         'Ferme ta gueule fils de pute',
@@ -23,6 +26,10 @@ export class PoliticsManager {
 
     constructor() {
         this.dbPath = path.join(__dirname, '..', 'data', 'triggerwords.json');
+    }
+
+    isAllowedUser(userId: string): boolean {
+        return this.allowedUsers.includes(userId);
     }
 
     async init() {
@@ -50,23 +57,29 @@ export class PoliticsManager {
                     "désarmé", "police"
                 ];
                 this.triggerWords = defaultWords;
+                this.enabled = true;
                 await this.saveTriggerWords();
                 return;
             }
 
             const parsed = JSON.parse(data) as TriggerWordsData;
             this.triggerWords = parsed.words;
+            this.enabled = parsed.enabled ?? true;
         } catch (error) {
             console.error('Error loading trigger words:', error);
             // If there's any other error, initialize with empty array
             this.triggerWords = [];
+            this.enabled = true;
             await this.saveTriggerWords();
         }
     }
 
     private async saveTriggerWords() {
         try {
-            const data: TriggerWordsData = { words: this.triggerWords };
+            const data: TriggerWordsData = { 
+                words: this.triggerWords,
+                enabled: this.enabled
+            };
             await fs.writeFile(this.dbPath, JSON.stringify(data, null, 4));
         } catch (error) {
             console.error('Error saving trigger words:', error);
@@ -75,6 +88,17 @@ export class PoliticsManager {
 
     private getRandomResponse(): string {
         return this.responses[Math.floor(Math.random() * this.responses.length)];
+    }
+
+    async setEnabled(enabled: boolean): Promise<void> {
+        await this.init();
+        this.enabled = enabled;
+        await this.saveTriggerWords();
+    }
+
+    async isEnabled(): Promise<boolean> {
+        await this.init();
+        return this.enabled;
     }
 
     // Add a new trigger word
@@ -111,7 +135,7 @@ export class PoliticsManager {
     async handleMessage(message: Message) {
         await this.init();
         // Ignore bot messages and messages from other users
-        if (message.author.bot || message.author.id !== this.targetUserId) {
+        if (message.author.bot || message.author.id !== this.targetUserId || !this.enabled) {
             return;
         }
 

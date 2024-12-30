@@ -31,10 +31,25 @@ export const data = new SlashCommandBuilder()
         subcommand
             .setName('list')
             .setDescription('View all trigger words')
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('enable')
+            .setDescription('Enable the politics filter')
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('disable')
+            .setDescription('Disable the politics filter')
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('status')
+            .setDescription('Check if the politics filter is enabled')
     );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.user.id !== config.ownerID) {
+    if (!politicsManager.isAllowedUser(interaction.user.id)) {
         await interaction.reply({
             content: 'Nique ta mère, t\'as pas les perms',
             ephemeral: true
@@ -67,6 +82,30 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const words = await politicsManager.getTriggerWords();
             await interaction.reply({
                 content: `Current trigger words:\n${words.join(', ')}`,
+                ephemeral: true
+            });
+            break;
+
+        case 'enable':
+            await politicsManager.setEnabled(true);
+            await interaction.reply({
+                content: 'Politics filter has been enabled',
+                ephemeral: true
+            });
+            break;
+
+        case 'disable':
+            await politicsManager.setEnabled(false);
+            await interaction.reply({
+                content: 'Politics filter has been disabled',
+                ephemeral: true
+            });
+            break;
+
+        case 'status':
+            const enabled = await politicsManager.isEnabled();
+            await interaction.reply({
+                content: `Politics filter is currently ${enabled ? 'enabled' : 'disabled'}`,
                 ephemeral: true
             });
             break;

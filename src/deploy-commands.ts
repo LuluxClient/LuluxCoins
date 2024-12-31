@@ -10,6 +10,8 @@ import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
+import * as duel from './commands/duel';
+import * as gamestats from './commands/gamestats';
 
 const commands = [
     balance.data,
@@ -21,20 +23,23 @@ const commands = [
     vendesleep.data,
     roux.data,
     music.data,
-    triggerwords.data
+    triggerwords.data,
+    duel.data,
+    gamestats.data
 ].map(command => command.toJSON());
 
-const rest = new REST().setToken(config.token);
+const rest = new REST({ version: '10' }).setToken(config.token);
 
-// Déployez les commandes
 (async () => {
     try {
-        console.log('Début du déploiement des commandes...');
+        console.log('Started refreshing application (/) commands.');
+
         await rest.put(
             Routes.applicationCommands(config.clientId),
-            { body: commands }
+            { body: commands },
         );
-        console.log('Commandes déployées avec succès !');
+
+        console.log('Successfully reloaded application (/) commands.');
     } catch (error) {
         console.error(error);
     }

@@ -15,8 +15,11 @@ import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
+import * as duel from './commands/duel';
+import * as gamestats from './commands/gamestats';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
+import { GameInteractionHandler } from './games/handlers/GameInteractionHandler';
 
 const client = new Client({
     intents: [
@@ -30,7 +33,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, triggerwords].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, triggerwords, duel, gamestats].forEach(command => {
     commands.set(command.data.name, command);
 });
 
@@ -42,7 +45,6 @@ client.once(Events.ClientReady, async () => {
         console.log('YouTube cookies extracted successfully');
     } catch (error) {
         console.error('Failed to extract YouTube cookies:', error);
-        // Continue anyway, as we might still work without cookies
     }
     
     musicManager.setClient(client); 
@@ -75,12 +77,16 @@ client.once(Events.ClientReady, async () => {
         console.error('Erreur lors de la configuration du canal de musique:', error);
     }
 
-    // Initialize politicsManager
     await politicsManager.init();
     console.log('Politics manager initialized successfully');
 });
 
 client.on(Events.InteractionCreate, async interaction => {
+    if (interaction.isButton() && (interaction.customId.startsWith('tictactoe_') || interaction.customId.startsWith('connect4_'))) {
+        await GameInteractionHandler.handleButtonInteraction(interaction);
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = commands.get(interaction.commandName);
@@ -91,7 +97,7 @@ client.on(Events.InteractionCreate, async interaction => {
     } catch (error) {
         console.error(error);
         const errorMessage = {
-            content: 'There was an error executing this command!',
+            content: 'Une erreur est survenue !',
             ephemeral: true
         };
         
@@ -120,14 +126,12 @@ client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
     }
 });
 
-// Add message event handler for politics manager
 client.on(Events.MessageCreate, async message => {
     await politicsManager.handleMessage(message);
 });
 
 client.login(config.token);
 
-// Gestion de l'arrêt propre
 process.on('SIGINT', async () => {
     console.log('Arrêt du bot...');
     await statusManager.shutdown();

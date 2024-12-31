@@ -93,25 +93,7 @@ export class TicTacToeManager {
         const isBoardFull = TicTacToeLogic.isBoardFull(game.board);
 
         if (winner || isBoardFull) {
-            game.status = GameStatus.FINISHED;
-            if (winner) {
-                game.winner = currentPlayer;
-            }
-            await this.updateGameStats(game);
-            await this.updateGameMessage(game);
-            
-            // Supprimer immédiatement la partie de la liste des parties actives
-            activeGamesManager.removeGame(game.id);
-            this.games.delete(game.id);
-
-            // Supprimer le message après 30 secondes
-            const message = this.gameMessages.get(game.id);
-            if (message) {
-                setTimeout(() => {
-                    message.delete().catch(console.error);
-                    this.gameMessages.delete(game.id);
-                }, 30000);
-            }
+            await this.endGame(game, winner ? currentPlayer : null);
         } else {
             if (currentPlayer === game.player1) {
                 game.currentTurn = this.getUserId(game.player2.user);
@@ -122,7 +104,7 @@ export class TicTacToeManager {
             await this.updateGameMessage(game);
 
             if (game.player2.user === 'LuluxBot' && game.currentTurn === 'bot') {
-                setTimeout(() => this.makeBotMove(game), 1500);
+                setTimeout(() => this.makeBotMove(game), 500);
             }
         }
     }
@@ -228,10 +210,6 @@ export class TicTacToeManager {
         game.winner = winner;
 
         await this.updateGameStats(game);
-        await this.updateGameMessage(game);
-
-        activeGamesManager.removeGame(game.id);
-        this.games.delete(game.id);
 
         const message = this.gameMessages.get(game.id);
         if (message) {
@@ -260,6 +238,14 @@ export class TicTacToeManager {
                 console.error('Erreur lors de la mise à jour du message final:', error);
             }
         }
+
+        // Supprimer la partie de la liste des parties actives
+        activeGamesManager.removeGame(game.id);
+        this.games.delete(game.id);
+    }
+
+    getGameMessage(gameId: string): Message | undefined {
+        return this.gameMessages.get(gameId);
     }
 }
 

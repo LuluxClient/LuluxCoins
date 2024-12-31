@@ -30,7 +30,7 @@ export class TicTacToeLogic {
 
     static getBotMove(board: string[]): number {
         // 5% de chance de jouer aléatoirement
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.1) {
             const availableMoves = board
                 .map((cell, index) => cell === this.EMPTY_CELL ? index : -1)
                 .filter(index => index !== -1);

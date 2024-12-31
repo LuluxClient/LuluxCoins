@@ -6,9 +6,6 @@ import { replayManager } from '../common/managers/ReplayManager';
 
 export class GameInteractionHandler {
     static async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
-        console.log('[INTERACTION] Début du traitement de l\'interaction');
-        console.log('[INTERACTION] CustomId:', interaction.customId);
-
         // Initialiser le client pour le ReplayManager
         replayManager.setClient(interaction.client);
 
@@ -17,8 +14,6 @@ export class GameInteractionHandler {
         const gameType = parts[0];
         const gameId = parts[1];
         const action = parts[2];
-
-        console.log('[INTERACTION] Type:', gameType, 'GameId:', gameId, 'Action:', action);
 
         try {
             switch (gameType) {
@@ -37,18 +32,14 @@ export class GameInteractionHandler {
                     break;
                 }
                 case 'blackjack':
-                    console.log('[BLACKJACK] Début du traitement de l\'interaction blackjack');
                     await this.handleBlackjackInteraction(interaction, action, gameId);
-                    console.log('[BLACKJACK] Fin du traitement de l\'interaction blackjack');
                     break;
                 case 'replay':
                     await this.handleReplayInteraction(interaction);
                     break;
-                default:
-                    console.log('[INTERACTION] Type de jeu non reconnu:', gameType);
             }
         } catch (error) {
-            console.error('[INTERACTION] Erreur lors du traitement:', error);
+            console.error('Erreur lors du traitement:', error);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     content: 'Une erreur est survenue lors du traitement de votre action.',
@@ -59,10 +50,8 @@ export class GameInteractionHandler {
     }
 
     private static async handleTicTacToeInteraction(interaction: ButtonInteraction, position: number, gameId: string): Promise<void> {
-        console.log('[TICTACTOE] Vérification de la partie:', gameId);
         const game = ticTacToeManager.getGame(gameId);
         if (!game) {
-            console.log('[TICTACTOE] Partie non trouvée');
             await interaction.reply({
                 content: 'Cette partie n\'existe plus.',
                 ephemeral: true
@@ -82,7 +71,7 @@ export class GameInteractionHandler {
             await interaction.deferUpdate();
             await ticTacToeManager.makeMove(gameId, position, interaction.user.id);
         } catch (error) {
-            console.error('[TICTACTOE] Erreur lors de l\'exécution du coup:', error);
+            console.error('Erreur lors de l\'exécution du coup:', error);
         }
     }
 

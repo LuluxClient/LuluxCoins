@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } from 'discord.js
 import { ticTacToeManager } from '../../tictactoe/TicTacToeManager';
 import { connect4Manager } from '../../connect4/Connect4Manager';
 import { blackjackManager } from '../../blackjack/BlackjackManager';
+import { activeGamesManager } from '../managers/ActiveGamesManager';
 
 class ReplayManager {
     private client: Client | null = null;
@@ -32,6 +33,9 @@ class ReplayManager {
         
         try {
             const player1 = await this.client.users.fetch(playerId);
+
+            // Ne supprimer que la partie spécifique qui est rejouée
+            activeGamesManager.removeGame(gameId);
 
             // Si c'est contre le bot, on relance directement
             switch (gameType) {

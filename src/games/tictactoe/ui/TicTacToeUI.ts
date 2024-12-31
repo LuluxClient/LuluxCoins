@@ -40,19 +40,22 @@ export class TicTacToeUI {
     static createGameButtons(game: TicTacToeGame): ActionRowBuilder<ButtonBuilder>[] {
         const rows: ActionRowBuilder<ButtonBuilder>[] = [];
         
-        if (game.status !== GameStatus.IN_PROGRESS) {
-            return rows;
-        }
-
         for (let i = 0; i < 3; i++) {
             const row = new ActionRowBuilder<ButtonBuilder>();
             for (let j = 0; j < 3; j++) {
                 const position = i * 3 + j;
                 const button = new ButtonBuilder()
                     .setCustomId(`tictactoe_${game.id}_${position}`)
-                    .setStyle(this.getButtonStyle(game.board[position]))
-                    .setLabel(this.getButtonLabel(game.board[position]))
-                    .setDisabled(game.board[position] !== TicTacToeLogic.EMPTY_CELL);
+                    .setStyle(ButtonStyle.Secondary);
+
+                if (game.board[position] === '❌' || game.board[position] === '⭕') {
+                    button.setLabel(game.board[position])
+                          .setDisabled(true);
+                } else {
+                    button.setLabel('⬜')
+                          .setDisabled(game.status !== GameStatus.IN_PROGRESS);
+                }
+
                 row.addComponents(button);
             }
             rows.push(row);

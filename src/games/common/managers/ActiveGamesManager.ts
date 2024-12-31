@@ -32,6 +32,17 @@ export class ActiveGamesManager {
 
         return { canStart: true };
     }
+
+    removeAllGamesForPlayer(player: User): void {
+        const playerGames = Array.from(this.activeGames.entries())
+            .filter(([_, players]) => 
+                Array.from(players).some(p => p === player.id)
+            );
+
+        for (const [gameId] of playerGames) {
+            this.removeGame(gameId);
+        }
+    }
 }
 
 export const activeGamesManager = new ActiveGamesManager(); 

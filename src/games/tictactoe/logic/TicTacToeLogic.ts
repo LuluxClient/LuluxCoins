@@ -29,39 +29,63 @@ export class TicTacToeLogic {
     }
 
     static getBotMove(board: string[]): number {
-        // First, try to win
-        const possibleMoves = board.map((cell, index) => cell === this.EMPTY_CELL ? index : -1).filter(index => index !== -1);
-        
-        for (const move of possibleMoves) {
-            const testBoard = [...board];
-            testBoard[move] = this.BOT_SYMBOL;
-            if (this.checkWinner(testBoard) === this.BOT_SYMBOL) {
-                return move;
+        // 5% de chance de jouer aléatoirement
+        if (Math.random() < 0.05) {
+            const availableMoves = board
+                .map((cell, index) => cell === this.EMPTY_CELL ? index : -1)
+                .filter(index => index !== -1);
+            
+            if (availableMoves.length > 0) {
+                return availableMoves[Math.floor(Math.random() * availableMoves.length)];
             }
         }
 
-        // Then, block player's winning move
-        for (const move of possibleMoves) {
-            const testBoard = [...board];
-            testBoard[move] = this.PLAYER_SYMBOL;
-            if (this.checkWinner(testBoard) === this.PLAYER_SYMBOL) {
-                return move;
+        // Sinon, jouer intelligemment
+        // Vérifier si on peut gagner
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === this.EMPTY_CELL) {
+                board[i] = '⭕';
+                if (this.checkWinner(board)) {
+                    board[i] = this.EMPTY_CELL;
+                    return i;
+                }
+                board[i] = this.EMPTY_CELL;
             }
         }
 
-        // Try to take center
+        // Vérifier si l'adversaire peut gagner et le bloquer
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === this.EMPTY_CELL) {
+                board[i] = '❌';
+                if (this.checkWinner(board)) {
+                    board[i] = this.EMPTY_CELL;
+                    return i;
+                }
+                board[i] = this.EMPTY_CELL;
+            }
+        }
+
+        // Jouer au centre si possible
         if (board[4] === this.EMPTY_CELL) {
             return 4;
         }
 
-        // Try to take corners
-        const corners = [0, 2, 6, 8].filter(i => board[i] === this.EMPTY_CELL);
-        if (corners.length > 0) {
-            return corners[Math.floor(Math.random() * corners.length)];
+        // Jouer dans un coin
+        const corners = [0, 2, 6, 8];
+        const availableCorners = corners.filter(i => board[i] === this.EMPTY_CELL);
+        if (availableCorners.length > 0) {
+            return availableCorners[Math.floor(Math.random() * availableCorners.length)];
         }
 
-        // Take any available move
-        return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        // Jouer sur un côté
+        const sides = [1, 3, 5, 7];
+        const availableSides = sides.filter(i => board[i] === this.EMPTY_CELL);
+        if (availableSides.length > 0) {
+            return availableSides[Math.floor(Math.random() * availableSides.length)];
+        }
+
+        // Si aucun coup n'est possible, retourner -1
+        return -1;
     }
 
     static formatBoard(board: string[]): string {

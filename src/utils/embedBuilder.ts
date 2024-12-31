@@ -99,7 +99,7 @@ export class EmbedCreator {
     static createLuluxcoinsActionEmbed(type: 'add' | 'remove', executor: string, target: string, amount: number, newBalance: number) {
         const action = type === 'add' ? 'ajouté' : 'retiré';
         const color = type === 'add' ? '#00FF00' : '#FF0000';
-        const emoji = type === 'add' ? '💰' : '💸';
+        const emoji = type === 'add' ? config.luluxcoinsEmoji : '💸';
 
         return new EmbedBuilder()
             .setColor(color)

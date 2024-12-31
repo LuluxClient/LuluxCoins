@@ -82,7 +82,12 @@ client.once(Events.ClientReady, async () => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isButton() && (interaction.customId.startsWith('tictactoe_') || interaction.customId.startsWith('connect4_'))) {
+    if (interaction.isButton() && (
+        interaction.customId.startsWith('tictactoe_') || 
+        interaction.customId.startsWith('connect4_') ||
+        interaction.customId.startsWith('blackjack_') ||
+        interaction.customId.startsWith('replay_')
+    )) {
         await GameInteractionHandler.handleButtonInteraction(interaction);
         return;
     }

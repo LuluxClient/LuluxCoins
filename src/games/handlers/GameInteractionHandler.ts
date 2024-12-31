@@ -1,74 +1,169 @@
 import { ButtonInteraction } from 'discord.js';
-import { GameStatus } from '../common/types/GameTypes';
 import { ticTacToeManager } from '../tictactoe/TicTacToeManager';
 import { connect4Manager } from '../connect4/Connect4Manager';
+import { blackjackManager } from '../blackjack/BlackjackManager';
+import { replayManager } from '../common/managers/ReplayManager';
 
 export class GameInteractionHandler {
     static async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
-        // Handle TicTacToe buttons
-        if (interaction.customId.startsWith('tictactoe_')) {
-            await this.handleTicTacToeButton(interaction);
-            return;
-        }
+        console.log('[INTERACTION] Début du traitement de l\'interaction');
+        console.log('[INTERACTION] CustomId:', interaction.customId);
 
-        // Handle Connect4 buttons
-        if (interaction.customId.startsWith('connect4_')) {
-            await this.handleConnect4Button(interaction);
-            return;
+        // Initialiser le client pour le ReplayManager
+        replayManager.setClient(interaction.client);
+
+        // Format: gameType_gameId_action
+        const parts = interaction.customId.split('_');
+        const gameType = parts[0];
+        const gameId = parts[1];
+        const action = parts[2];
+
+        console.log('[INTERACTION] Type:', gameType, 'GameId:', gameId, 'Action:', action);
+
+        try {
+            switch (gameType) {
+                case 'tictactoe': {
+                    const position = parseInt(action);
+                    if (!isNaN(position)) {
+                        await this.handleTicTacToeInteraction(interaction, position, gameId);
+                    }
+                    break;
+                }
+                case 'connect4': {
+                    const column = parseInt(action);
+                    if (!isNaN(column)) {
+                        await this.handleConnect4Interaction(interaction, column, gameId);
+                    }
+                    break;
+                }
+                case 'blackjack':
+                    console.log('[BLACKJACK] Début du traitement de l\'interaction blackjack');
+                    await this.handleBlackjackInteraction(interaction, action, gameId);
+                    console.log('[BLACKJACK] Fin du traitement de l\'interaction blackjack');
+                    break;
+                case 'replay':
+                    await this.handleReplayInteraction(interaction);
+                    break;
+                default:
+                    console.log('[INTERACTION] Type de jeu non reconnu:', gameType);
+            }
+        } catch (error) {
+            console.error('[INTERACTION] Erreur lors du traitement:', error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: 'Une erreur est survenue lors du traitement de votre action.',
+                    ephemeral: true
+                });
+            }
         }
     }
 
-    private static async handleTicTacToeButton(interaction: ButtonInteraction): Promise<void> {
+    private static async handleTicTacToeInteraction(interaction: ButtonInteraction, position: number, gameId: string): Promise<void> {
+        console.log('[TICTACTOE] Vérification de la partie:', gameId);
+        const game = ticTacToeManager.getGame(gameId);
+        if (!game) {
+            console.log('[TICTACTOE] Partie non trouvée');
+            await interaction.reply({
+                content: 'Cette partie n\'existe plus.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        if (game.currentTurn !== interaction.user.id) {
+            await interaction.reply({
+                content: 'Ce n\'est pas votre tour !',
+                ephemeral: true
+            });
+            return;
+        }
+
         try {
-            const [_, gameId, positionStr] = interaction.customId.split('_');
-            const position = parseInt(positionStr);
-            
-            const game = ticTacToeManager.getGame(gameId);
-            if (!game) {
-                await interaction.reply({ content: 'Cette partie n\'existe plus.', ephemeral: true });
-                return;
-            }
-
-            if (game.currentTurn !== interaction.user.id) {
-                await interaction.reply({ content: 'Ce n\'est pas ton tour !', ephemeral: true });
-                return;
-            }
-
+            await interaction.deferUpdate();
             await ticTacToeManager.makeMove(gameId, position, interaction.user.id);
-            await interaction.deferUpdate();
-
         } catch (error) {
-            await interaction.reply({
-                content: `❌ ${error instanceof Error ? error.message : 'Une erreur est survenue'}`,
-                ephemeral: true
-            });
+            console.error('[TICTACTOE] Erreur lors de l\'exécution du coup:', error);
         }
     }
 
-    private static async handleConnect4Button(interaction: ButtonInteraction): Promise<void> {
-        try {
-            const [_, gameId, columnStr] = interaction.customId.split('_');
-            const column = parseInt(columnStr);
-            
-            const game = connect4Manager.getGame(gameId);
-            if (!game) {
-                await interaction.reply({ content: 'Cette partie n\'existe plus.', ephemeral: true });
-                return;
-            }
-
-            if (game.currentTurn !== interaction.user.id) {
-                await interaction.reply({ content: 'Ce n\'est pas ton tour !', ephemeral: true });
-                return;
-            }
-
-            await connect4Manager.makeMove(gameId, column, interaction.user.id);
-            await interaction.deferUpdate();
-
-        } catch (error) {
+    private static async handleConnect4Interaction(interaction: ButtonInteraction, column: number, gameId: string): Promise<void> {
+        console.log('[CONNECT4] Vérification de la partie:', gameId);
+        const game = connect4Manager.getGame(gameId);
+        if (!game) {
+            console.log('[CONNECT4] Partie non trouvée');
             await interaction.reply({
-                content: `❌ ${error instanceof Error ? error.message : 'Une erreur est survenue'}`,
+                content: 'Cette partie n\'existe plus.',
                 ephemeral: true
             });
+            return;
         }
+
+        if (game.currentTurn !== interaction.user.id) {
+            await interaction.reply({
+                content: 'Ce n\'est pas votre tour !',
+                ephemeral: true
+            });
+            return;
+        }
+
+        try {
+            await interaction.deferUpdate();
+            await connect4Manager.makeMove(gameId, column, interaction.user.id);
+        } catch (error) {
+            console.error('[CONNECT4] Erreur lors de l\'exécution du coup:', error);
+        }
+    }
+
+    private static async handleBlackjackInteraction(interaction: ButtonInteraction, action: string, gameId: string): Promise<void> {
+        console.log('[BLACKJACK] Vérification de la partie:', gameId);
+        const game = blackjackManager.getGame(gameId);
+        if (!game) {
+            console.log('[BLACKJACK] Partie non trouvée');
+            await interaction.reply({
+                content: 'Cette partie n\'existe plus.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // Vérifier si c'est bien le joueur qui joue
+        const playerId = typeof game.player.user === 'string' ? game.player.user : game.player.user.id;
+        if (playerId !== interaction.user.id) {
+            await interaction.reply({
+                content: 'Ce n\'est pas votre partie !',
+                ephemeral: true
+            });
+            return;
+        }
+
+        console.log('[BLACKJACK] Exécution de l\'action:', action);
+        try {
+            await interaction.deferUpdate();
+            
+            switch (action) {
+                case 'hit':
+                    await blackjackManager.handleHit(gameId, interaction.user.id);
+                    break;
+                case 'stand':
+                    await blackjackManager.handleStand(gameId, interaction.user.id);
+                    break;
+                case 'double':
+                    await blackjackManager.handleDouble(gameId, interaction.user.id);
+                    break;
+                case 'split':
+                    await blackjackManager.handleSplit(gameId, interaction.user.id);
+                    break;
+                default:
+                    console.log('[BLACKJACK] Action non reconnue:', action);
+            }
+        } catch (error) {
+            console.error('[BLACKJACK] Erreur lors de l\'exécution de l\'action:', error);
+        }
+    }
+
+    private static async handleReplayInteraction(interaction: ButtonInteraction): Promise<void> {
+        const [_, gameType, gameId] = interaction.customId.split('_');
+        await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id);
+        await interaction.deferUpdate();
     }
 } 

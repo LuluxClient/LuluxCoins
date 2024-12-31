@@ -6,6 +6,7 @@ import { Connect4Logic } from './logic/Connect4Logic';
 import { Connect4UI } from './ui/Connect4UI';
 import { gameStats } from '../common/stats/GameStats';
 import { activeGamesManager } from '../common/managers/ActiveGamesManager';
+import { replayManager } from '../common/managers/ReplayManager';
 
 export class Connect4Manager {
     private games: Map<string, Connect4Game> = new Map();
@@ -258,6 +259,41 @@ export class Connect4Manager {
 
     createGameButtons(game: Connect4Game) {
         return Connect4UI.createGameButtons(game);
+    }
+
+    private async endGame(game: Connect4Game, winner: Connect4Player | null): Promise<void> {
+        game.status = GameStatus.FINISHED;
+        game.winner = winner;
+
+        await this.updateGameStats(game);
+        await this.updateGameMessage(game);
+
+        activeGamesManager.removeGame(game.id);
+        this.games.delete(game.id);
+
+        const message = this.gameMessages.get(game.id);
+        if (message) {
+            // Ajouter le bouton de replay
+            const embed = Connect4UI.createGameEmbed(game);
+            const replayButton = replayManager.createReplayButton(game.id, 'connect4');
+            
+            try {
+                await message.edit({
+                    embeds: [embed],
+                    components: [replayButton]
+                });
+
+                // Supprimer le message après 30 secondes si personne n'a cliqué sur rejouer
+                setTimeout(() => {
+                    if (this.gameMessages.has(game.id)) {
+                        message.delete().catch(() => {});
+                        this.gameMessages.delete(game.id);
+                    }
+                }, 30000);
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du message final:', error);
+            }
+        }
     }
 }
 

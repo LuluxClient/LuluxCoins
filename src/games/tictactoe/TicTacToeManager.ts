@@ -6,6 +6,7 @@ import { TicTacToeLogic } from './logic/TicTacToeLogic';
 import { TicTacToeUI } from './ui/TicTacToeUI';
 import { gameStats } from '../common/stats/GameStats';
 import { activeGamesManager } from '../common/managers/ActiveGamesManager';
+import { replayManager } from '../common/managers/ReplayManager';
 
 export class TicTacToeManager {
     private games: Map<string, TicTacToeGame> = new Map();
@@ -220,6 +221,45 @@ export class TicTacToeManager {
 
     createGameButtons(game: TicTacToeGame) {
         return TicTacToeUI.createGameButtons(game);
+    }
+
+    private async endGame(game: TicTacToeGame, winner: TicTacToePlayer | null): Promise<void> {
+        game.status = GameStatus.FINISHED;
+        game.winner = winner;
+
+        await this.updateGameStats(game);
+        await this.updateGameMessage(game);
+
+        activeGamesManager.removeGame(game.id);
+        this.games.delete(game.id);
+
+        const message = this.gameMessages.get(game.id);
+        if (message) {
+            // Ajouter le bouton de replay
+            const embed = TicTacToeUI.createGameEmbed(game);
+            const replayButton = replayManager.createReplayButton(game.id, 'tictactoe');
+            
+            try {
+                await message.edit({
+                    embeds: [embed],
+                    components: [replayButton]
+                });
+
+                // Supprimer le message après 30 secondes si personne n'a cliqué sur rejouer
+                setTimeout(async () => {
+                    try {
+                        if (this.gameMessages.has(game.id)) {
+                            await message.delete();
+                            this.gameMessages.delete(game.id);
+                        }
+                    } catch (error) {
+                        console.error('Erreur lors de la suppression du message:', error);
+                    }
+                }, 30000);
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du message final:', error);
+            }
+        }
     }
 }
 

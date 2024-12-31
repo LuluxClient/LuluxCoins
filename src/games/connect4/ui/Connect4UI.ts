@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'disc
 import { Connect4Game } from '../types/Connect4Types';
 import { Connect4Logic } from '../logic/Connect4Logic';
 import { GameStatus } from '../../common/types/GameTypes';
+import { config } from '../../../config';
 
 export class Connect4UI {
     static createGameEmbed(game: Connect4Game): EmbedBuilder {
@@ -15,19 +16,16 @@ export class Connect4UI {
 
         embed.addFields(
             { name: 'Joueur 1', value: `${player1Name} (${game.player1.symbol})`, inline: true },
-            { name: 'Joueur 2', value: `${player2Name} (${game.player2.symbol})`, inline: true }
+            { name: 'Joueur 2', value: `${player2Name} (${game.player2.symbol})`, inline: true },
+            { name: 'Mise', value: `${game.wager} ${config.luluxcoinsEmoji}`, inline: true }
         );
-
-        if (game.wager > 0) {
-            embed.addFields({ name: 'Mise', value: `${game.wager} 💰`, inline: true });
-        }
 
         if (game.status === GameStatus.FINISHED) {
             if (game.winner) {
                 const winnerName = game.winner.user === 'LuluxBot' ? 'LuluxBot' : `<@${game.winner.user.id}>`;
                 embed.addFields({ 
                     name: 'Résultat', 
-                    value: `🏆 ${winnerName} a gagné${game.wager > 0 ? ` et remporte ${game.wager * 2} 💰` : ''} !` 
+                    value: `🏆 ${winnerName} a gagné${game.wager > 0 ? ` et remporte ${game.wager * 2} ${config.luluxcoinsEmoji}` : ''} !` 
                 });
             } else {
                 embed.addFields({ name: 'Résultat', value: '🤝 Match nul !' });
@@ -41,29 +39,26 @@ export class Connect4UI {
     }
 
     static createGameButtons(game: Connect4Game): ActionRowBuilder<ButtonBuilder>[] {
-        const row1 = new ActionRowBuilder<ButtonBuilder>();
-        const row2 = new ActionRowBuilder<ButtonBuilder>();
-
-        for (let col = 0; col < Connect4Logic.COLS; col++) {
-            const button = new ButtonBuilder()
-                .setCustomId(`connect4_${game.id}_${col}`)
-                .setLabel(`${col + 1}`)
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(
-                    game.status === GameStatus.FINISHED || 
-                    !Connect4Logic.isValidMove(game.board, col) ||
-                    (game.currentTurn === 'bot' && game.player2.user === 'LuluxBot')
-                );
-
-            // Répartir les boutons : 4 sur la première ligne, 3 sur la deuxième
-            if (col < 4) {
-                row1.addComponents(button);
-            } else {
-                row2.addComponents(button);
-            }
+        const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+        
+        // Si la partie est terminée, ne pas afficher les boutons
+        if (game.status !== GameStatus.IN_PROGRESS) {
+            return rows;
         }
 
-        return [row1, row2];
+        // Créer une rangée de 7 boutons pour les colonnes
+        const row = new ActionRowBuilder<ButtonBuilder>();
+        for (let col = 0; col < 7; col++) {
+            const button = new ButtonBuilder()
+                .setCustomId(`connect4_${game.id}_${col}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬇️')
+                .setDisabled(!Connect4Logic.isValidMove(game.board, col));
+            row.addComponents(button);
+        }
+        rows.push(row);
+
+        return rows;
     }
 
     private static formatBoard(board: string[][]): string {

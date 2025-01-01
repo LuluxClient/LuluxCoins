@@ -46,17 +46,29 @@ export class Connect4UI {
             return rows;
         }
 
-        // Créer une rangée de 7 boutons pour les colonnes
-        const row = new ActionRowBuilder<ButtonBuilder>();
-        for (let col = 0; col < 7; col++) {
+        // Première rangée : colonnes 1-5
+        const row1 = new ActionRowBuilder<ButtonBuilder>();
+        for (let col = 0; col < 5; col++) {
             const button = new ButtonBuilder()
                 .setCustomId(`connect4_${game.id}_${col}`)
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬇️')
                 .setDisabled(!Connect4Logic.isValidMove(game.board, col));
-            row.addComponents(button);
+            row1.addComponents(button);
         }
-        rows.push(row);
+        rows.push(row1);
+
+        // Deuxième rangée : colonnes 6-7
+        const row2 = new ActionRowBuilder<ButtonBuilder>();
+        for (let col = 5; col < 7; col++) {
+            const button = new ButtonBuilder()
+                .setCustomId(`connect4_${game.id}_${col}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬇️')
+                .setDisabled(!Connect4Logic.isValidMove(game.board, col));
+            row2.addComponents(button);
+        }
+        rows.push(row2);
 
         return rows;
     }

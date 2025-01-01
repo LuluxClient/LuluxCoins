@@ -485,12 +485,17 @@ export class BlackjackManager {
     }
 
     async handleReplay(gameId: string, playerId: string): Promise<void> {
+        console.log('[DEBUG] Début handleReplay');
         const game = this.games.get(gameId);
-        if (!game || game.status !== GameStatus.FINISHED) return;
+        if (!game || game.status !== GameStatus.FINISHED) {
+            console.log('[DEBUG] Partie non trouvée ou non terminée');
+            return;
+        }
 
         // Vérifier si le joueur a assez d'argent pour rejouer
         const userData = await db.getUser(playerId);
         if (!userData || userData.balance < game.wager) {
+            console.log('[DEBUG] Pas assez d\'argent pour rejouer');
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
@@ -503,19 +508,34 @@ export class BlackjackManager {
 
         // Créer une nouvelle partie avec les mêmes paramètres
         const player = typeof game.player.user === 'string' ? 'bot' : game.player.user;
+        console.log('[DEBUG] Création d\'une nouvelle partie');
         const newGame = await this.createGame(
             player === 'bot' ? game.player.user as User : player,
             game.wager
         );
 
-        // Mettre à jour le message avec la nouvelle partie
-        const message = this.gameMessages.get(gameId);
-        if (message) {
-            const newMessage = await message.reply({
+        // Supprimer l'ancienne partie
+        console.log('[DEBUG] Suppression de l\'ancienne partie');
+        this.games.delete(gameId);
+        const oldMessage = this.gameMessages.get(gameId);
+        if (oldMessage) {
+            this.gameMessages.delete(gameId);
+            // Mettre à jour le message de l'ancienne partie pour indiquer qu'elle est terminée
+            await oldMessage.edit({
+                embeds: [BlackjackUI.createGameEmbed(game)],
+                components: [] // Supprimer les boutons
+            });
+        }
+
+        // Créer un nouveau message pour la nouvelle partie
+        console.log('[DEBUG] Création du nouveau message');
+        if (oldMessage) {
+            const newMessage = await oldMessage.reply({
                 embeds: [BlackjackUI.createGameEmbed(newGame)],
                 components: BlackjackUI.createGameButtons(newGame)
             });
             this.gameMessages.set(newGame.id, newMessage);
+            console.log('[DEBUG] Nouveau message créé avec succès');
         }
     }
 }

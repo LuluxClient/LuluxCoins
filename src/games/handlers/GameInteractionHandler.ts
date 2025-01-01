@@ -9,11 +9,13 @@ export class GameInteractionHandler {
         try {
             const [action, gameType, gameId, ...rest] = interaction.customId.split('_');
 
+            // Toujours accuser réception de l'interaction immédiatement
+            await interaction.deferUpdate();
+
             // Gérer le replay séparément car il a un format différent
             if (action === 'replay') {
                 const wager = parseInt(rest[0]);
                 await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id, wager);
-                await interaction.deferUpdate();
                 return;
             }
 
@@ -30,7 +32,7 @@ export class GameInteractionHandler {
                 case 'blackjack': {
                     const game = blackjackManager.getGame(gameId);
                     if (!game) {
-                        await interaction.reply({
+                        await interaction.followUp({
                             content: 'Cette partie n\'existe plus !',
                             ephemeral: true
                         });
@@ -39,14 +41,13 @@ export class GameInteractionHandler {
 
                     const playerId = typeof game.player.user === 'string' ? game.player.user : game.player.user.id;
                     if (playerId !== interaction.user.id) {
-                        await interaction.reply({
+                        await interaction.followUp({
                             content: 'Ce n\'est pas votre partie !',
                             ephemeral: true
                         });
                         return;
                     }
 
-                    await interaction.deferUpdate();
                     switch (action) {
                         case 'hit':
                             await blackjackManager.handleHit(gameId, interaction.user.id);
@@ -68,6 +69,11 @@ export class GameInteractionHandler {
             console.error('Erreur lors du traitement:', error);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
+                    content: 'Une erreur est survenue lors du traitement de votre action.',
+                    ephemeral: true
+                });
+            } else {
+                await interaction.followUp({
                     content: 'Une erreur est survenue lors du traitement de votre action.',
                     ephemeral: true
                 });

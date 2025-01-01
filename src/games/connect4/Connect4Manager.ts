@@ -478,52 +478,27 @@ export class Connect4Manager {
     }
 
     async handleInteraction(interaction: ButtonInteraction): Promise<void> {
-        const [_, gameId, action] = interaction.customId.split('_');
+        const [gameType, gameId, action] = interaction.customId.split('_').slice(1);
         const game = this.games.get(gameId);
 
         if (!game) {
-            await interaction.reply({ content: 'Cette partie n\'existe plus !', ephemeral: true });
-            return;
-        }
-
-        // Gérer l'acceptation/refus de l'invitation
-        if (game.status === GameStatus.WAITING_FOR_PLAYER) {
-            if (interaction.user.id !== (game.player2.user as User).id) {
-                await interaction.reply({ 
-                    content: 'Vous ne pouvez pas répondre à cette invitation !', 
-                    ephemeral: true 
-                });
-                return;
-            }
-
-            if (action === 'accept') {
-                await this.handleAccept(game, interaction);
-            } else if (action === 'decline') {
-                await this.handleDecline(game, interaction);
-            }
-            return;
-        }
-
-        // Gérer les coups du jeu
-        if (game.status !== GameStatus.IN_PROGRESS || game.currentTurn !== interaction.user.id) {
-            await interaction.reply({ 
-                content: 'Ce n\'est pas votre tour !', 
-                ephemeral: true 
+            await interaction.followUp({
+                content: 'Cette partie n\'existe plus !',
+                ephemeral: true
             });
             return;
         }
 
-        const column = parseInt(action);
-        if (isNaN(column) || column < 0 || column > 6 || !Connect4Logic.isValidMove(game.board, column)) {
-            await interaction.reply({ 
-                content: 'Coup invalide !', 
-                ephemeral: true 
-            });
-            return;
+        if (action === 'accept') {
+            await this.handleAccept(game, interaction);
+        } else if (action === 'decline') {
+            await this.handleDecline(game, interaction);
+        } else {
+            const column = parseInt(action);
+            if (!isNaN(column)) {
+                await this.makeMove(gameId, column, interaction.user.id);
+            }
         }
-
-        await interaction.deferUpdate();
-        await this.makeMove(gameId, column, interaction.user.id);
     }
 
     private async handleAccept(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {

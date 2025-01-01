@@ -30,6 +30,11 @@ export class GameInteractionHandler {
             switch (gameType) {
                 case 'tictactoe': {
                     console.log('[DEBUG] Traitement d\'une action TicTacToe');
+                    if (action === 'replay') {
+                        await ticTacToeManager.handleReplay(gameId, interaction.user.id);
+                        return;
+                    }
+
                     const game = ticTacToeManager.getGame(gameId);
                     if (!game) {
                         console.log('[DEBUG] Partie TicTacToe non trouvée');
@@ -47,13 +52,16 @@ export class GameInteractionHandler {
                         if (!isNaN(position)) {
                             await ticTacToeManager.makeMove(gameId, position, interaction.user.id);
                         }
-                    } else if (action === 'replay') {
-                        await ticTacToeManager.handleReplay(gameId, interaction.user.id);
                     }
                     break;
                 }
                 case 'connect4': {
                     console.log('[DEBUG] Traitement d\'une action Connect4');
+                    if (action === 'replay') {
+                        await connect4Manager.handleReplay(gameId, interaction.user.id);
+                        return;
+                    }
+
                     const game = connect4Manager.getGame(gameId);
                     if (!game) {
                         console.log('[DEBUG] Partie Connect4 non trouvée');
@@ -71,13 +79,17 @@ export class GameInteractionHandler {
                         if (!isNaN(column)) {
                             await connect4Manager.makeMove(gameId, column, interaction.user.id);
                         }
-                    } else if (action === 'replay') {
-                        await connect4Manager.handleReplay(gameId, interaction.user.id);
                     }
                     break;
                 }
                 case 'blackjack': {
                     console.log('[DEBUG] Traitement d\'une action Blackjack');
+                    if (action === 'replay') {
+                        console.log('[DEBUG] Traitement du replay Blackjack');
+                        await blackjackManager.handleReplay(gameId, interaction.user.id);
+                        return;
+                    }
+
                     const game = blackjackManager.getGame(gameId);
                     if (!game) {
                         console.log('[DEBUG] Partie Blackjack non trouvée');
@@ -111,10 +123,6 @@ export class GameInteractionHandler {
                             break;
                         case 'split':
                             await blackjackManager.handleSplit(gameId, interaction.user.id);
-                            break;
-                        case 'replay':
-                            console.log('[DEBUG] Traitement du replay Blackjack');
-                            await blackjackManager.handleReplay(gameId, interaction.user.id);
                             break;
                     }
                     break;

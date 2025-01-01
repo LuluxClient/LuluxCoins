@@ -437,8 +437,7 @@ export class BlackjackManager {
                 if (timeSinceLastMove >= this.GAME_TIMEOUT) {
                     this.endGame(game, 'dealer');
                 } else {
-                    setTimeout(() => this.startGameTimeout(game), 
-                        this.GAME_TIMEOUT - timeSinceLastMove);
+                    this.startGameTimeout(game);
                 }
             }
         }, this.GAME_TIMEOUT);

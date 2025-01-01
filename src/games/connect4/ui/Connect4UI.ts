@@ -39,38 +39,38 @@ export class Connect4UI {
     }
 
     static createGameButtons(game: Connect4Game): ActionRowBuilder<ButtonBuilder>[] {
-        const rows: ActionRowBuilder<ButtonBuilder>[] = [];
-        
-        // Si la partie est terminée, ne pas afficher les boutons
+        // Si la partie est terminée, retourner un tableau vide
         if (game.status !== GameStatus.IN_PROGRESS) {
-            return rows;
+            return [];
         }
 
-        // Première rangée : colonnes 1-5
+        // Créer deux rangées de boutons
         const row1 = new ActionRowBuilder<ButtonBuilder>();
-        for (let col = 0; col < 5; col++) {
-            const button = new ButtonBuilder()
-                .setCustomId(`connect4_${game.id}_${col}`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⬇️')
-                .setDisabled(!Connect4Logic.isValidMove(game.board, col));
-            row1.addComponents(button);
-        }
-        rows.push(row1);
-
-        // Deuxième rangée : colonnes 6-7
         const row2 = new ActionRowBuilder<ButtonBuilder>();
-        for (let col = 5; col < 7; col++) {
-            const button = new ButtonBuilder()
-                .setCustomId(`connect4_${game.id}_${col}`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⬇️')
-                .setDisabled(!Connect4Logic.isValidMove(game.board, col));
-            row2.addComponents(button);
-        }
-        rows.push(row2);
 
-        return rows;
+        // Ajouter les 5 premiers boutons à la première rangée
+        for (let i = 0; i < 5; i++) {
+            row1.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`connect4_${game.id}_${i}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⬇️')
+                    .setDisabled(!Connect4Logic.isValidMove(game.board, i))
+            );
+        }
+
+        // Ajouter les 2 derniers boutons à la deuxième rangée
+        for (let i = 5; i < 7; i++) {
+            row2.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`connect4_${game.id}_${i}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⬇️')
+                    .setDisabled(!Connect4Logic.isValidMove(game.board, i))
+            );
+        }
+
+        return [row1, row2];
     }
 
     private static formatBoard(board: string[][]): string {

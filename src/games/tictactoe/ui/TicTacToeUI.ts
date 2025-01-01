@@ -38,6 +38,27 @@ export class TicTacToeUI {
     }
 
     static createGameButtons(game: TicTacToeGame): ActionRowBuilder<ButtonBuilder>[] {
+        if (game.status === GameStatus.WAITING_FOR_PLAYER) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`tictactoe_${game.id}_accept`)
+                    .setLabel('Accepter')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId(`tictactoe_${game.id}_decline`)
+                    .setLabel('Refuser')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('❌')
+            );
+            return [row];
+        }
+
+        if (game.status !== GameStatus.IN_PROGRESS) {
+            return [];
+        }
+
         const rows: ActionRowBuilder<ButtonBuilder>[] = [];
         
         for (let i = 0; i < 3; i++) {
@@ -48,7 +69,7 @@ export class TicTacToeUI {
                     .setCustomId(`tictactoe_${game.id}_${position}`)
                     .setStyle(ButtonStyle.Secondary)
                     .setLabel(game.board[position])
-                    .setDisabled(game.status !== GameStatus.IN_PROGRESS || game.board[position] !== TicTacToeLogic.EMPTY_CELL);
+                    .setDisabled(game.board[position] !== TicTacToeLogic.EMPTY_CELL);
                 row.addComponents(button);
             }
             rows.push(row);

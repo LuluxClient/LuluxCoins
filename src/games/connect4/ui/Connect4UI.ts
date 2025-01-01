@@ -39,6 +39,24 @@ export class Connect4UI {
     }
 
     static createGameButtons(game: Connect4Game): ActionRowBuilder<ButtonBuilder>[] {
+        // Si on attend que le joueur accepte, montrer les boutons d'acceptation/refus
+        if (game.status === GameStatus.WAITING_FOR_PLAYER) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`connect4_${game.id}_accept`)
+                    .setLabel('Accepter')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId(`connect4_${game.id}_decline`)
+                    .setLabel('Refuser')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('❌')
+            );
+            return [row];
+        }
+
         // Si la partie est terminée, retourner un tableau vide
         if (game.status !== GameStatus.IN_PROGRESS) {
             return [];

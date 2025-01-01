@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, User, Message, Client } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, User, Message, Client, ButtonInteraction } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Connect4Game, Connect4Player } from './types/Connect4Types';
 import { GameStatus } from '../common/types/GameTypes';
@@ -478,6 +478,108 @@ export class Connect4Manager {
                 components: this.createGameButtons(game)
             });
         }
+    }
+
+    async handleInteraction(interaction: ButtonInteraction): Promise<void> {
+        const [_, gameId, action] = interaction.customId.split('_');
+        const game = this.games.get(gameId);
+
+        if (!game) {
+            await interaction.reply({ content: 'Cette partie n\'existe plus !', ephemeral: true });
+            return;
+        }
+
+        // Gérer l'acceptation/refus de l'invitation
+        if (game.status === GameStatus.WAITING_FOR_PLAYER) {
+            if (interaction.user.id !== (game.player2.user as User).id) {
+                await interaction.reply({ 
+                    content: 'Vous ne pouvez pas répondre à cette invitation !', 
+                    ephemeral: true 
+                });
+                return;
+            }
+
+            if (action === 'accept') {
+                await this.handleAccept(game, interaction);
+            } else if (action === 'decline') {
+                await this.handleDecline(game, interaction);
+            }
+            return;
+        }
+
+        // Gérer les coups du jeu
+        if (game.status !== GameStatus.IN_PROGRESS || game.currentTurn !== interaction.user.id) {
+            await interaction.reply({ 
+                content: 'Ce n\'est pas votre tour !', 
+                ephemeral: true 
+            });
+            return;
+        }
+
+        const column = parseInt(action);
+        if (isNaN(column) || column < 0 || column > 6 || !Connect4Logic.isValidMove(game.board, column)) {
+            await interaction.reply({ 
+                content: 'Coup invalide !', 
+                ephemeral: true 
+            });
+            return;
+        }
+
+        await interaction.deferUpdate();
+        await this.makeMove(gameId, column, interaction.user.id);
+    }
+
+    private async handleAccept(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {
+        // Vérifier si le joueur 2 a assez d'argent
+        if (game.wager > 0) {
+            const player2Data = await db.getUser(interaction.user.id);
+            if (!player2Data || player2Data.balance < game.wager) {
+                await interaction.reply({ 
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour accepter cette partie !', 
+                    ephemeral: true 
+                });
+                // Rembourser le joueur 1
+                await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
+                this.games.delete(game.id);
+                return;
+            }
+            // Déduire la mise du joueur 2
+            await db.updateBalance(interaction.user.id, game.wager, 'remove');
+        }
+
+        // Démarrer la partie
+        game.status = GameStatus.IN_PROGRESS;
+        await interaction.update({ 
+            content: 'La partie commence !',
+            embeds: [Connect4UI.createGameEmbed(game)],
+            components: Connect4UI.createGameButtons(game)
+        });
+    }
+
+    private async handleDecline(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {
+        // Rembourser le joueur 1
+        if (game.wager > 0) {
+            await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
+        }
+
+        // Supprimer la partie
+        this.games.delete(game.id);
+        activeGamesManager.removeGame(game.id);
+
+        await interaction.update({ 
+            content: `${interaction.user.username} a refusé la partie !`,
+            embeds: [],
+            components: []
+        });
+
+        // Supprimer le message après 30 secondes
+        setTimeout(() => {
+            const message = this.gameMessages.get(game.id);
+            if (message) {
+                message.delete().catch(console.error);
+                this.gameMessages.delete(game.id);
+            }
+        }, 30000);
     }
 }
 

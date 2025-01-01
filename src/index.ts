@@ -15,7 +15,7 @@ import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
-import * as duel from './commands/duel';
+import * as game from './commands/game';
 import * as gamestats from './commands/gamestats';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
@@ -33,7 +33,7 @@ const client = new Client({
 });
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
-[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, triggerwords, duel, gamestats].forEach(command => {
+[balance, leaderboard, luluxcoins, shop, history, initusers, vendesleep, roux, music, triggerwords, game, gamestats].forEach(command => {
     commands.set(command.data.name, command);
 });
 

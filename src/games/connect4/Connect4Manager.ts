@@ -535,16 +535,12 @@ export class Connect4Manager {
     }
 
     async handleInteraction(interaction: ButtonInteraction): Promise<void> {
-        console.log('[DEBUG Connect4] Début handleInteraction');
         const customIdParts = interaction.customId.split('_');
         const action = customIdParts[0];
         const gameId = customIdParts[2];
-        
-        console.log('[DEBUG Connect4] Parsed:', { action, gameId });
 
         const game = this.games.get(gameId);
         if (!game) {
-            console.log('[DEBUG Connect4] Partie non trouvée');
             await interaction.followUp({
                 content: 'Cette partie n\'existe plus !',
                 ephemeral: true
@@ -552,7 +548,6 @@ export class Connect4Manager {
             return;
         }
 
-        console.log('[DEBUG Connect4] Action:', action);
         try {
             if (action === 'accept') {
                 await this.handleAccept(game, interaction);
@@ -564,9 +559,8 @@ export class Connect4Manager {
                     await this.makeMove(gameId, column, interaction.user.id);
                 }
             }
-            console.log('[DEBUG Connect4] Action traitée avec succès');
         } catch (error) {
-            console.error('[DEBUG Connect4] Erreur lors du traitement:', error);
+            console.error('Erreur lors du traitement:', error);
         }
     }
 

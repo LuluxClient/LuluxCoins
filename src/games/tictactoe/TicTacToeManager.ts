@@ -496,13 +496,12 @@ export class TicTacToeManager {
     }
 
     async handleInteraction(interaction: ButtonInteraction): Promise<void> {
-        console.log('[DEBUG TicTacToe] Début handleInteraction');
-        const [gameType, gameId, action] = interaction.customId.split('_').slice(1);
-        console.log('[DEBUG TicTacToe] Parsed:', { gameType, gameId, action });
+        const customIdParts = interaction.customId.split('_');
+        const action = customIdParts[0];
+        const gameId = customIdParts[2];
 
         const game = this.games.get(gameId);
         if (!game) {
-            console.log('[DEBUG TicTacToe] Partie non trouvée');
             await interaction.followUp({
                 content: 'Cette partie n\'existe plus !',
                 ephemeral: true
@@ -510,7 +509,6 @@ export class TicTacToeManager {
             return;
         }
 
-        console.log('[DEBUG TicTacToe] Action:', action);
         try {
             if (action === 'accept') {
                 await this.handleAccept(game, interaction);
@@ -522,9 +520,8 @@ export class TicTacToeManager {
                     await this.makeMove(gameId, position, interaction.user.id);
                 }
             }
-            console.log('[DEBUG TicTacToe] Action traitée avec succès');
         } catch (error) {
-            console.error('[DEBUG TicTacToe] Erreur lors du traitement:', error);
+            console.error('Erreur lors du traitement:', error);
         }
     }
 

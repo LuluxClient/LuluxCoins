@@ -23,9 +23,9 @@ export * from './connect4/types/Connect4Types';
 
 // Gestionnaire d'interactions pour les jeux
 export async function handleGameInteraction(interaction: ButtonInteraction): Promise<void> {
-    const [gameType, gameId, action] = interaction.customId.split('_');
-
     try {
+        const [gameType, gameId, action] = interaction.customId.split('_');
+
         if (gameType === 'tictactoe') {
             const game = ticTacToeManager.getGame(gameId);
             if (!game) {
@@ -57,8 +57,7 @@ export async function handleGameInteraction(interaction: ButtonInteraction): Pro
             await interaction.deferUpdate();
         }
     } catch (error) {
-        console.error(error);
-        await interaction.reply({ content: 'Une erreur est survenue !', ephemeral: true });
+        await interaction.reply({ content: 'Une erreur est survenue !', ephemeral: true }).catch(() => {});
     }
 }
 

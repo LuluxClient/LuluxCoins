@@ -116,10 +116,7 @@ export class Connect4Manager {
 
     addGameMessage(gameId: string, message: Message): void {
         this.gameMessages.set(gameId, message);
-        const game = this.games.get(gameId);
-        if (game) {
-            this.updateGameMessage(game);
-        }
+        // Ne pas mettre à jour le message immédiatement
     }
 
     private getUserId(user: User | 'LuluxBot'): string {
@@ -550,24 +547,12 @@ export class Connect4Manager {
         // Démarrer la partie
         game.status = GameStatus.IN_PROGRESS;
         
-        // Mettre à jour le message avec un message de transition
+        // Mettre à jour le message avec le plateau de jeu
         await interaction.update({ 
-            content: `${interaction.user.username} a accepté le défi ! La partie commence...`,
+            content: null,
             embeds: [Connect4UI.createGameEmbed(game)],
             components: Connect4UI.createGameButtons(game)
         });
-
-        // Attendre un court instant avant de mettre à jour le message avec le plateau de jeu
-        setTimeout(async () => {
-            const message = this.gameMessages.get(game.id);
-            if (message) {
-                await message.edit({
-                    content: null,
-                    embeds: [Connect4UI.createGameEmbed(game)],
-                    components: Connect4UI.createGameButtons(game)
-                });
-            }
-        }, 1500);
     }
 
     private async handleDecline(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {

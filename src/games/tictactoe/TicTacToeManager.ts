@@ -113,11 +113,7 @@ export class TicTacToeManager {
 
     addGameMessage(gameId: string, message: Message): void {
         this.gameMessages.set(gameId, message);
-        const game = this.games.get(gameId);
-        if (game) {
-            // Mettre à jour immédiatement le message pour afficher le ping
-            this.updateGameMessage(game);
-        }
+        // Ne pas mettre à jour le message immédiatement
     }
 
     private cleanupGame(game: TicTacToeGame): void {
@@ -496,24 +492,12 @@ export class TicTacToeManager {
         // Démarrer la partie
         game.status = GameStatus.IN_PROGRESS;
         
-        // Mettre à jour le message avec un message de transition
+        // Mettre à jour le message avec le plateau de jeu
         await interaction.update({ 
-            content: `${interaction.user.username} a accepté le défi ! La partie commence...`,
+            content: null,
             embeds: [TicTacToeUI.createGameEmbed(game)],
             components: TicTacToeUI.createGameButtons(game)
         });
-
-        // Attendre un court instant avant de mettre à jour le message avec le plateau de jeu
-        setTimeout(async () => {
-            const message = this.gameMessages.get(game.id);
-            if (message) {
-                await message.edit({
-                    content: null,
-                    embeds: [TicTacToeUI.createGameEmbed(game)],
-                    components: TicTacToeUI.createGameButtons(game)
-                });
-            }
-        }, 1500);
     }
 
     private async handleDecline(game: TicTacToeGame, interaction: ButtonInteraction): Promise<void> {

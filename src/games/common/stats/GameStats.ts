@@ -31,19 +31,37 @@ export class GameStats {
     private initialized = false;
 
     async displayStats(userId: string, message: Message): Promise<void> {
-        const stats = await this.getStats(userId);
-        const embed = this.createStatsEmbed(userId, stats);
-        
-        const channel = message.channel as TextChannel;
-        const newMessage = await channel.send({ embeds: [embed] });
+        try {
+            const stats = await this.getStats(userId);
+            if (!stats) {
+                throw new Error('Statistiques non trouvées');
+            }
 
-        // Utiliser le messageCooldownManager pour gérer le timer
-        messageCooldownManager.startCooldown(
-            `stats_${userId}`,
-            30000, // 30 secondes
-            undefined,
-            newMessage
-        );
+            const embed = this.createStatsEmbed(userId, stats);
+            if (!message.channel) {
+                throw new Error('Canal non trouvé');
+            }
+
+            const channel = message.channel as TextChannel;
+            const newMessage = await channel.send({ embeds: [embed] });
+
+            // Utiliser le messageCooldownManager pour gérer le timer
+            messageCooldownManager.startCooldown(
+                `stats_${userId}`,
+                30000, // 30 secondes
+                () => {
+                    // Callback exécuté après le délai
+                    if (newMessage) {
+                        newMessage.delete().catch(error => {
+                            console.error('Erreur lors de la suppression du message de stats:', error);
+                        });
+                    }
+                }
+            );
+        } catch (error) {
+            console.error('Erreur lors de l\'affichage des stats:', error);
+            throw error;
+        }
     }
 
     async getStats(userId: string): Promise<UserStats> {

@@ -244,6 +244,7 @@ export class BlackjackManager {
         // Révéler la carte cachée
         game.dealer.hiddenCard = false;
         await this.updateGameMessage(game);
+        await new Promise(resolve => setTimeout(resolve, 1100)); // Délai pour voir la carte cachée
         
         // Si le joueur a bust, pas besoin de jouer
         const currentHand = game.currentHand === 'main' ? game.player.hand : game.player.splitHand!;
@@ -259,6 +260,7 @@ export class BlackjackManager {
             const card = BlackjackLogic.dealCard(game.deck);
             BlackjackLogic.addCardToHand(game.dealer.hand, card);
             await this.updateGameMessage(game);
+            await new Promise(resolve => setTimeout(resolve, 1100)); // Délai entre chaque carte
             console.log('[DEALER] Nouvelle carte:', card);
         }
 

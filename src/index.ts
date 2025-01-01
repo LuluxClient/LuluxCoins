@@ -86,14 +86,12 @@ client.once(Events.ClientReady, async () => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isButton() && (
-        interaction.customId.startsWith('tictactoe_') || 
-        interaction.customId.startsWith('connect4_') ||
-        interaction.customId.startsWith('blackjack_') ||
-        interaction.customId.startsWith('replay_')
-    )) {
-        await GameInteractionHandler.handleButtonInteraction(interaction);
-        return;
+    if (interaction.isButton()) {
+        const [action, gameType] = interaction.customId.split('_');
+        if (gameType === 'tictactoe' || gameType === 'connect4' || gameType === 'blackjack' || action === 'replay') {
+            await GameInteractionHandler.handleButtonInteraction(interaction);
+            return;
+        }
     }
 
     if (!interaction.isChatInputCommand()) return;

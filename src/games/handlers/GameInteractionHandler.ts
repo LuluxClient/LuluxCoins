@@ -38,12 +38,46 @@ export class GameInteractionHandler {
             switch (gameType) {
                 case 'tictactoe': {
                     console.log('[DEBUG] Traitement d\'une action TicTacToe');
-                    await ticTacToeManager.handleInteraction(interaction);
+                    const game = ticTacToeManager.getGame(gameId);
+                    if (!game) {
+                        console.log('[DEBUG] Partie TicTacToe non trouvée');
+                        await interaction.followUp({
+                            content: 'Cette partie n\'existe plus !',
+                            ephemeral: true
+                        });
+                        return;
+                    }
+
+                    if (action === 'accept' || action === 'decline') {
+                        await ticTacToeManager.handleInteraction(interaction);
+                    } else if (action === 'move') {
+                        const position = parseInt(rest[0]);
+                        if (!isNaN(position)) {
+                            await ticTacToeManager.makeMove(gameId, position, interaction.user.id);
+                        }
+                    }
                     break;
                 }
                 case 'connect4': {
                     console.log('[DEBUG] Traitement d\'une action Connect4');
-                    await connect4Manager.handleInteraction(interaction);
+                    const game = connect4Manager.getGame(gameId);
+                    if (!game) {
+                        console.log('[DEBUG] Partie Connect4 non trouvée');
+                        await interaction.followUp({
+                            content: 'Cette partie n\'existe plus !',
+                            ephemeral: true
+                        });
+                        return;
+                    }
+
+                    if (action === 'accept' || action === 'decline') {
+                        await connect4Manager.handleInteraction(interaction);
+                    } else if (action === 'move') {
+                        const column = parseInt(rest[0]);
+                        if (!isNaN(column)) {
+                            await connect4Manager.makeMove(gameId, column, interaction.user.id);
+                        }
+                    }
                     break;
                 }
                 case 'blackjack': {

@@ -42,12 +42,12 @@ export class TicTacToeUI {
             const row = new ActionRowBuilder<ButtonBuilder>();
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`tictactoe_${game.id}_accept`)
+                    .setCustomId(`accept_tictactoe_${game.id}`)
                     .setLabel('Accepter')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('✅'),
                 new ButtonBuilder()
-                    .setCustomId(`tictactoe_${game.id}_decline`)
+                    .setCustomId(`decline_tictactoe_${game.id}`)
                     .setLabel('Refuser')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('❌')
@@ -66,7 +66,7 @@ export class TicTacToeUI {
             for (let j = 0; j < 3; j++) {
                 const position = i * 3 + j;
                 const button = new ButtonBuilder()
-                    .setCustomId(`tictactoe_${game.id}_${position}`)
+                    .setCustomId(`move_tictactoe_${game.id}_${position}`)
                     .setStyle(ButtonStyle.Secondary)
                     .setLabel(game.board[position])
                     .setDisabled(game.board[position] !== TicTacToeLogic.EMPTY_CELL);

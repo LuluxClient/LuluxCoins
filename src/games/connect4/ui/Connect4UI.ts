@@ -44,12 +44,12 @@ export class Connect4UI {
             const row = new ActionRowBuilder<ButtonBuilder>();
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`connect4_${game.id}_accept`)
+                    .setCustomId(`accept_connect4_${game.id}`)
                     .setLabel('Accepter')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('✅'),
                 new ButtonBuilder()
-                    .setCustomId(`connect4_${game.id}_decline`)
+                    .setCustomId(`decline_connect4_${game.id}`)
                     .setLabel('Refuser')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('❌')
@@ -73,7 +73,7 @@ export class Connect4UI {
         for (let i = 0; i < 5; i++) {
             row1.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`connect4_${game.id}_${i}`)
+                    .setCustomId(`move_connect4_${game.id}_${i}`)
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji(numbers[i])
                     .setDisabled(!Connect4Logic.isValidMove(game.board, i))
@@ -84,7 +84,7 @@ export class Connect4UI {
         for (let i = 5; i < 7; i++) {
             row2.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`connect4_${game.id}_${i}`)
+                    .setCustomId(`move_connect4_${game.id}_${i}`)
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji(numbers[i])
                     .setDisabled(!Connect4Logic.isValidMove(game.board, i))

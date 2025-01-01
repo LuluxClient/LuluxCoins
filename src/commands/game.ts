@@ -62,7 +62,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
 
         const message = await interaction.reply({ 
-            content: opponent ? `<@${opponent.id}>, une partie a été lancée !` : '',
+            content: opponent ? `<@${opponent.id}>, ${interaction.user.username} vous invite à jouer une partie !` : '',
             embeds: [embed], 
             components: buttons,
             fetchReply: true 

@@ -25,26 +25,49 @@ export class TicTacToeManager {
             throw new Error(canStart.error);
         }
 
-        // Vérifier si les joueurs ont assez d'argent
+        // Vérifier si le joueur a assez d'argent
         const player1Data = await db.getUser(player1.id);
         if (!player1Data || player1Data.balance < wager) {
             throw new Error(`${player1.username} n'a pas assez de LuluxCoins pour jouer !`);
         }
         
-        if (player2 !== 'bot') {
-            const player2Data = await db.getUser(player2.id);
-            if (!player2Data || player2Data.balance < wager) {
-                throw new Error(`${player2.username} n'a pas assez de LuluxCoins pour jouer !`);
-            }
-            await db.updateBalance(player2.id, wager, 'remove');
-        }
-
         // Déduire la mise du joueur 1
         await db.updateBalance(player1.id, wager, 'remove');
 
         const id = uuidv4();
-        const startsFirst = Math.random() < 0.5;
 
+        // Si c'est contre le bot, démarrer directement
+        if (player2 === 'bot') {
+            const startsFirst = Math.random() < 0.5;
+            const game: TicTacToeGame = {
+                id,
+                player1: {
+                    user: player1,
+                    symbol: '❌'
+                },
+                player2: {
+                    user: 'LuluxBot',
+                    symbol: '⭕'
+                },
+                board: Array(9).fill(TicTacToeLogic.EMPTY_CELL),
+                currentTurn: startsFirst ? player1.id : 'bot',
+                status: GameStatus.IN_PROGRESS,
+                wager,
+                winner: null
+            };
+
+            this.games.set(id, game);
+            activeGamesManager.addGame(id, player1, 'bot');
+
+            // Si le bot commence, on le fait jouer après un court délai
+            if (!startsFirst) {
+                setTimeout(() => this.makeBotMove(game), 1500);
+            }
+
+            return game;
+        }
+
+        // Si c'est contre un joueur, créer une invitation
         const game: TicTacToeGame = {
             id,
             player1: {
@@ -52,12 +75,12 @@ export class TicTacToeManager {
                 symbol: '❌'
             },
             player2: {
-                user: player2 === 'bot' ? 'LuluxBot' : player2,
+                user: player2,
                 symbol: '⭕'
             },
             board: Array(9).fill(TicTacToeLogic.EMPTY_CELL),
-            currentTurn: startsFirst ? player1.id : (player2 === 'bot' ? 'bot' : player2.id),
-            status: GameStatus.IN_PROGRESS,
+            currentTurn: player1.id,
+            status: GameStatus.WAITING_FOR_PLAYER,
             wager,
             winner: null
         };
@@ -65,10 +88,25 @@ export class TicTacToeManager {
         this.games.set(id, game);
         activeGamesManager.addGame(id, player1, player2);
 
-        // Si le bot commence, on le fait jouer après un court délai
-        if (player2 === 'bot' && !startsFirst) {
-            setTimeout(() => this.makeBotMove(game), 1500);
-        }
+        // Supprimer l'invitation après 1 minute
+        setTimeout(async () => {
+            const gameToDelete = this.games.get(id);
+            if (gameToDelete && gameToDelete.status === GameStatus.WAITING_FOR_PLAYER) {
+                // Rembourser le joueur 1
+                await db.updateBalance(player1.id, wager, 'add');
+                
+                // Supprimer le jeu
+                this.games.delete(id);
+                activeGamesManager.removeGame(id);
+                
+                // Supprimer le message
+                const message = this.gameMessages.get(id);
+                if (message) {
+                    await message.delete().catch(console.error);
+                    this.gameMessages.delete(id);
+                }
+            }
+        }, 60000);
 
         return game;
     }

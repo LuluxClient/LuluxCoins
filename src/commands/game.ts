@@ -3,6 +3,8 @@ import { ChatInputCommandInteraction } from 'discord.js';
 import { ticTacToeManager } from '../games/tictactoe/TicTacToeManager';
 import { connect4Manager } from '../games/connect4/Connect4Manager';
 import { blackjackManager } from '../games/blackjack/BlackjackManager';
+import { EmbedBuilder } from '@discordjs/builders';
+import { config } from '../config';
 
 export const data = new SlashCommandBuilder()
     .setName('game')
@@ -47,11 +49,25 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         if (gameType === 'tictactoe') {
             game = await ticTacToeManager.createGame(interaction.user, opponent || 'bot', wager);
-            embed = ticTacToeManager.createGameEmbed(game);
+            if (opponent) {
+                embed = new EmbedBuilder()
+                    .setColor(0xFFA500)
+                    .setTitle('🎮 Défi Morpion')
+                    .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Morpion avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
+            } else {
+                embed = ticTacToeManager.createGameEmbed(game);
+            }
             buttons = ticTacToeManager.createGameButtons(game);
         } else if (gameType === 'connect4') {
             game = await connect4Manager.createGame(interaction.user, opponent || 'bot', wager);
-            embed = connect4Manager.createGameEmbed(game);
+            if (opponent) {
+                embed = new EmbedBuilder()
+                    .setColor(0xFFA500)
+                    .setTitle('🎮 Défi Puissance 4')
+                    .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Puissance 4 avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
+            } else {
+                embed = connect4Manager.createGameEmbed(game);
+            }
             buttons = connect4Manager.createGameButtons(game);
         } else if (gameType === 'blackjack') {
             game = await blackjackManager.createGame(interaction.user, wager);
@@ -62,7 +78,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
 
         const message = await interaction.reply({ 
-            content: opponent ? `<@${opponent.id}>, ${interaction.user.username} vous invite à jouer une partie !` : '',
             embeds: [embed], 
             components: buttons,
             fetchReply: true 

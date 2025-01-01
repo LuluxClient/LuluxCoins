@@ -48,13 +48,16 @@ export class Connect4UI {
         const row1 = new ActionRowBuilder<ButtonBuilder>();
         const row2 = new ActionRowBuilder<ButtonBuilder>();
 
+        // Emojis des numéros
+        const numbers = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣'];
+
         // Ajouter les 5 premiers boutons à la première rangée
         for (let i = 0; i < 5; i++) {
             row1.addComponents(
                 new ButtonBuilder()
                     .setCustomId(`connect4_${game.id}_${i}`)
                     .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⬇️')
+                    .setEmoji(numbers[i])
                     .setDisabled(!Connect4Logic.isValidMove(game.board, i))
             );
         }
@@ -65,7 +68,7 @@ export class Connect4UI {
                 new ButtonBuilder()
                     .setCustomId(`connect4_${game.id}_${i}`)
                     .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⬇️')
+                    .setEmoji(numbers[i])
                     .setDisabled(!Connect4Logic.isValidMove(game.board, i))
             );
         }

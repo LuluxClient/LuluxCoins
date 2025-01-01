@@ -29,5 +29,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     const embed = EmbedCreator.createBalanceEmbed(userData);
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ 
+        embeds: [embed],
+        ephemeral: true
+    });
 } 

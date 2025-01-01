@@ -6,34 +6,25 @@ import { replayManager } from '../common/managers/ReplayManager';
 
 export class GameInteractionHandler {
     static async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
-        // Initialiser le client pour le ReplayManager
-        replayManager.setClient(interaction.client);
-
-        // Format: gameType_gameId_action
-        const [gameType, gameId, action] = interaction.customId.split('_');
-
         try {
+            const [action, gameType, gameId, ...rest] = interaction.customId.split('_');
+
+            // Gérer le replay séparément car il a un format différent
+            if (action === 'replay') {
+                const wager = parseInt(rest[0]);
+                await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id, wager);
+                await interaction.deferUpdate();
+                return;
+            }
+
+            // Gérer les autres actions de jeu
             switch (gameType) {
                 case 'tictactoe': {
-                    if (action === 'accept' || action === 'decline') {
-                        await ticTacToeManager.handleInteraction(interaction);
-                    } else {
-                        const position = parseInt(action);
-                        if (!isNaN(position)) {
-                            await ticTacToeManager.handleInteraction(interaction);
-                        }
-                    }
+                    await ticTacToeManager.handleInteraction(interaction);
                     break;
                 }
                 case 'connect4': {
-                    if (action === 'accept' || action === 'decline') {
-                        await connect4Manager.handleInteraction(interaction);
-                    } else {
-                        const column = parseInt(action);
-                        if (!isNaN(column)) {
-                            await connect4Manager.handleInteraction(interaction);
-                        }
-                    }
+                    await connect4Manager.handleInteraction(interaction);
                     break;
                 }
                 case 'blackjack': {
@@ -72,10 +63,6 @@ export class GameInteractionHandler {
                     }
                     break;
                 }
-                case 'replay':
-                    await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id, parseInt(action));
-                    await interaction.deferUpdate();
-                    break;
             }
         } catch (error) {
             console.error('Erreur lors du traitement:', error);

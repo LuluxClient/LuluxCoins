@@ -478,10 +478,13 @@ export class Connect4Manager {
     }
 
     async handleInteraction(interaction: ButtonInteraction): Promise<void> {
+        console.log('[DEBUG Connect4] Début handleInteraction');
         const [gameType, gameId, action] = interaction.customId.split('_').slice(1);
-        const game = this.games.get(gameId);
+        console.log('[DEBUG Connect4] Parsed:', { gameType, gameId, action });
 
+        const game = this.games.get(gameId);
         if (!game) {
+            console.log('[DEBUG Connect4] Partie non trouvée');
             await interaction.followUp({
                 content: 'Cette partie n\'existe plus !',
                 ephemeral: true
@@ -489,15 +492,21 @@ export class Connect4Manager {
             return;
         }
 
-        if (action === 'accept') {
-            await this.handleAccept(game, interaction);
-        } else if (action === 'decline') {
-            await this.handleDecline(game, interaction);
-        } else {
-            const column = parseInt(action);
-            if (!isNaN(column)) {
-                await this.makeMove(gameId, column, interaction.user.id);
+        console.log('[DEBUG Connect4] Action:', action);
+        try {
+            if (action === 'accept') {
+                await this.handleAccept(game, interaction);
+            } else if (action === 'decline') {
+                await this.handleDecline(game, interaction);
+            } else {
+                const column = parseInt(action);
+                if (!isNaN(column)) {
+                    await this.makeMove(gameId, column, interaction.user.id);
+                }
             }
+            console.log('[DEBUG Connect4] Action traitée avec succès');
+        } catch (error) {
+            console.error('[DEBUG Connect4] Erreur lors du traitement:', error);
         }
     }
 

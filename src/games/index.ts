@@ -1,6 +1,9 @@
-import { ButtonInteraction } from 'discord.js';
+import { ButtonInteraction, Client } from 'discord.js';
 import { ticTacToeManager } from './tictactoe/TicTacToeManager';
 import { connect4Manager } from './connect4/Connect4Manager';
+import { initTicTacToeManager } from './tictactoe/TicTacToeManager';
+import { initConnect4Manager } from './connect4/Connect4Manager';
+import { initBlackjackManager } from './blackjack/BlackjackManager';
 
 // Types communs
 export * from './common/types/GameTypes';
@@ -57,4 +60,10 @@ export async function handleGameInteraction(interaction: ButtonInteraction): Pro
         console.error(error);
         await interaction.reply({ content: 'Une erreur est survenue !', ephemeral: true });
     }
+}
+
+export function initGameManagers(client: Client) {
+    initTicTacToeManager(client);
+    initConnect4Manager(client);
+    initBlackjackManager(client);
 } 

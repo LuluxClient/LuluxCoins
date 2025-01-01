@@ -1,4 +1,4 @@
-import { User, Message } from 'discord.js';
+import { User, Message, Client } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BlackjackGame } from './types/BlackjackTypes';
 import { GameStatus } from '../common/types/GameTypes';
@@ -14,6 +14,11 @@ export class BlackjackManager {
     private games: Map<string, BlackjackGame> = new Map();
     private gameMessages: Map<string, Message> = new Map();
     private readonly GAME_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    private client: Client;
+
+    constructor(client: Client) {
+        this.client = client;
+    }
 
     private getUserId(user: User | 'LuluxBot'): string {
         return typeof user === 'string' ? user : user.id;
@@ -481,4 +486,8 @@ export class BlackjackManager {
     }
 }
 
-export const blackjackManager = new BlackjackManager(); 
+export let blackjackManager: BlackjackManager;
+
+export function initBlackjackManager(client: Client) {
+    blackjackManager = new BlackjackManager(client);
+} 

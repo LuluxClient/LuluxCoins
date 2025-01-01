@@ -151,8 +151,8 @@ export class GameInteractionHandler {
     }
 
     private static async handleReplayInteraction(interaction: ButtonInteraction): Promise<void> {
-        const [_, gameType, gameId] = interaction.customId.split('_');
-        await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id);
+        const [_, gameType, gameId, wager] = interaction.customId.split('_');
+        await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id, parseInt(wager));
         await interaction.deferUpdate();
     }
 } 

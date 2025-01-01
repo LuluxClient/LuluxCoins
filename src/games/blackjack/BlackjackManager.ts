@@ -279,7 +279,7 @@ export class BlackjackManager {
         if (message) {
             // Ajouter le bouton de replay
             const embed = BlackjackUI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'blackjack');
+            const replayButton = replayManager.createReplayButton(game.id, 'blackjack', game.wager);
             
             try {
                 await message.edit({
@@ -312,22 +312,36 @@ export class BlackjackManager {
     private async updateGameStats(game: BlackjackGame): Promise<void> {
         const stats = await gameStats.getStats(this.getUserId(game.player.user));
 
+        // Mise à jour des statistiques de base
         stats.global.gamesPlayed++;
         stats.blackjack.gamesPlayed++;
         stats.global.totalWager += game.wager;
         stats.blackjack.totalWager += game.wager;
 
+        // Calcul des gains en fonction du résultat
         if (game.winner === 'player') {
             stats.global.gamesWon++;
             stats.blackjack.gamesWon++;
-            stats.global.totalEarned += game.wager * 2;
-            stats.blackjack.totalEarned += game.wager * 2;
+            
+            // Si c'est un blackjack naturel, le joueur gagne 2.5x sa mise
+            if (game.player.hand.isNaturalBlackjack) {
+                const winnings = Math.floor(game.wager * 2.5);
+                stats.global.totalEarned += winnings;
+                stats.blackjack.totalEarned += winnings;
+            } else {
+                // Sinon, le joueur gagne 2x sa mise
+                stats.global.totalEarned += game.wager * 2;
+                stats.blackjack.totalEarned += game.wager * 2;
+            }
         } else if (game.winner === 'dealer') {
             stats.global.gamesLost++;
             stats.blackjack.gamesLost++;
+            // Pas de gains quand on perd
         } else {
+            // En cas d'égalité
             stats.global.gamesTied++;
             stats.blackjack.gamesTied++;
+            // Le joueur récupère sa mise
             stats.global.totalEarned += game.wager;
             stats.blackjack.totalEarned += game.wager;
         }

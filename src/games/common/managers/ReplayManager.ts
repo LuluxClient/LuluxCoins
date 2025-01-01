@@ -18,9 +18,9 @@ class ReplayManager {
         this.client = client;
     }
 
-    createReplayButton(gameId: string, gameType: 'tictactoe' | 'connect4' | 'blackjack'): ActionRowBuilder<ButtonBuilder> {
+    createReplayButton(gameId: string, gameType: 'tictactoe' | 'connect4' | 'blackjack', wager: number): ActionRowBuilder<ButtonBuilder> {
         const replayButton = new ButtonBuilder()
-            .setCustomId(`replay_${gameType}_${gameId}`)
+            .setCustomId(`replay_${gameType}_${gameId}_${wager}`)
             .setLabel('REJOUER')
             .setStyle(ButtonStyle.Primary)
             .setEmoji('🔄');
@@ -28,7 +28,7 @@ class ReplayManager {
         return new ActionRowBuilder<ButtonBuilder>().addComponents(replayButton);
     }
 
-    async handleReplayRequest(gameType: string, gameId: string, playerId: string): Promise<void> {
+    async handleReplayRequest(gameType: string, gameId: string, playerId: string, wager: number): Promise<void> {
         if (!this.client) return;
         
         try {
@@ -52,7 +52,7 @@ class ReplayManager {
 
             switch (gameType) {
                 case 'tictactoe':
-                    newGame = await ticTacToeManager.createGame(player1, 'bot', 0);
+                    newGame = await ticTacToeManager.createGame(player1, 'bot', wager);
                     const newTicTacToeMessage = await channel.send({
                         embeds: [ticTacToeManager.createGameEmbed(newGame)],
                         components: ticTacToeManager.createGameButtons(newGame)
@@ -60,7 +60,7 @@ class ReplayManager {
                     ticTacToeManager.addGameMessage(newGame.id, newTicTacToeMessage);
                     break;
                 case 'connect4':
-                    newGame = await connect4Manager.createGame(player1, 'bot', 0);
+                    newGame = await connect4Manager.createGame(player1, 'bot', wager);
                     const newConnect4Message = await channel.send({
                         embeds: [connect4Manager.createGameEmbed(newGame)],
                         components: connect4Manager.createGameButtons(newGame)
@@ -68,7 +68,7 @@ class ReplayManager {
                     connect4Manager.addGameMessage(newGame.id, newConnect4Message);
                     break;
                 case 'blackjack':
-                    newGame = await blackjackManager.createGame(player1, 0);
+                    newGame = await blackjackManager.createGame(player1, wager);
                     const newBlackjackMessage = await channel.send({
                         embeds: [blackjackManager.createGameEmbed(newGame)],
                         components: blackjackManager.createGameButtons(newGame)

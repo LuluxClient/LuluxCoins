@@ -143,30 +143,43 @@ export class TicTacToeManager {
 
     private async updateGameStats(game: TicTacToeGame): Promise<void> {
         // Ne pas sauvegarder les stats contre le bot
-        if (game.player2.user === 'LuluxBot') return;
+        if (game.player2.user === 'LuluxBot') {
+            const stats = await gameStats.getStats(this.getUserId(game.player1.user));
+            
+            stats.global.gamesPlayed++;
+            stats.tictactoe.gamesPlayed++;
+            
+            if (game.wager > 0) {
+                stats.global.totalWager += game.wager;
+                stats.tictactoe.totalWager += game.wager;
+                
+                if (game.winner === game.player1) {
+                    stats.global.gamesWon++;
+                    stats.tictactoe.gamesWon++;
+                    // Le joueur gagne 2x sa mise
+                    stats.global.totalEarned += game.wager * 2;
+                    stats.tictactoe.totalEarned += game.wager * 2;
+                } else if (game.winner === game.player2) {
+                    stats.global.gamesLost++;
+                    stats.tictactoe.gamesLost++;
+                    // Pas de gains en cas de défaite
+                } else {
+                    stats.global.gamesTied++;
+                    stats.tictactoe.gamesTied++;
+                    // Le joueur récupère sa mise en cas d'égalité
+                    stats.global.totalEarned += game.wager;
+                    stats.tictactoe.totalEarned += game.wager;
+                }
+            }
+            
+            await gameStats.saveStats(this.getUserId(game.player1.user), stats);
+            return;
+        }
 
         const stats = await gameStats.getStats(this.getUserId(game.player1.user));
         const stats2 = await gameStats.getStats(this.getUserId(game.player2.user));
 
-        if (game.winner) {
-            if (game.winner === game.player1) {
-                stats.global.gamesWon++;
-                stats.tictactoe.gamesWon++;
-                stats2.global.gamesLost++;
-                stats2.tictactoe.gamesLost++;
-            } else {
-                stats.global.gamesLost++;
-                stats.tictactoe.gamesLost++;
-                stats2.global.gamesWon++;
-                stats2.tictactoe.gamesWon++;
-            }
-        } else {
-            stats.global.gamesTied++;
-            stats.tictactoe.gamesTied++;
-            stats2.global.gamesTied++;
-            stats2.tictactoe.gamesTied++;
-        }
-
+        // Mise à jour des statistiques de base
         stats.global.gamesPlayed++;
         stats.tictactoe.gamesPlayed++;
         stats2.global.gamesPlayed++;
@@ -177,16 +190,45 @@ export class TicTacToeManager {
             stats.tictactoe.totalWager += game.wager;
             stats2.global.totalWager += game.wager;
             stats2.tictactoe.totalWager += game.wager;
+        }
 
-            if (game.winner) {
-                const winnings = game.wager * 2;
-                if (game.winner === game.player1) {
-                    stats.global.totalEarned += winnings;
-                    stats.tictactoe.totalEarned += winnings;
-                } else {
-                    stats2.global.totalEarned += winnings;
-                    stats2.tictactoe.totalEarned += winnings;
+        if (game.winner) {
+            if (game.winner === game.player1) {
+                stats.global.gamesWon++;
+                stats.tictactoe.gamesWon++;
+                stats2.global.gamesLost++;
+                stats2.tictactoe.gamesLost++;
+                
+                if (game.wager > 0) {
+                    // Le gagnant reçoit 2x sa mise
+                    stats.global.totalEarned += game.wager * 2;
+                    stats.tictactoe.totalEarned += game.wager * 2;
                 }
+            } else {
+                stats.global.gamesLost++;
+                stats.tictactoe.gamesLost++;
+                stats2.global.gamesWon++;
+                stats2.connect4.gamesWon++;
+                
+                if (game.wager > 0) {
+                    // Le gagnant reçoit 2x sa mise
+                    stats2.global.totalEarned += game.wager * 2;
+                    stats2.tictactoe.totalEarned += game.wager * 2;
+                }
+            }
+        } else {
+            // En cas d'égalité
+            stats.global.gamesTied++;
+            stats.tictactoe.gamesTied++;
+            stats2.global.gamesTied++;
+            stats2.tictactoe.gamesTied++;
+            
+            if (game.wager > 0) {
+                // Les deux joueurs récupèrent leur mise
+                stats.global.totalEarned += game.wager;
+                stats.tictactoe.totalEarned += game.wager;
+                stats2.global.totalEarned += game.wager;
+                stats2.tictactoe.totalEarned += game.wager;
             }
         }
 
@@ -216,7 +258,7 @@ export class TicTacToeManager {
         if (message) {
             // Ajouter le bouton de replay
             const embed = TicTacToeUI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'tictactoe');
+            const replayButton = replayManager.createReplayButton(game.id, 'tictactoe', game.wager);
             
             try {
                 await message.edit({

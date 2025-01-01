@@ -105,6 +105,22 @@ export class BlackjackLogic {
     }
 
     static determineWinner(playerHand: Hand, dealerHand: Hand): 'player' | 'dealer' | 'push' {
+        // Si le joueur a un blackjack naturel
+        if (playerHand.isNaturalBlackjack) {
+            // Si le croupier a aussi un blackjack naturel, c'est une égalité
+            if (dealerHand.isNaturalBlackjack) {
+                return 'push';
+            }
+            // Sinon le joueur gagne
+            return 'player';
+        }
+        
+        // Si le croupier a un blackjack naturel et pas le joueur, le croupier gagne
+        if (dealerHand.isNaturalBlackjack) {
+            return 'dealer';
+        }
+
+        // Logique standard
         if (playerHand.value > 21) return 'dealer';
         if (dealerHand.value > 21) return 'player';
         if (playerHand.value > dealerHand.value) return 'player';

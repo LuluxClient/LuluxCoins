@@ -1,4 +1,4 @@
-import { User, Message } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, User, Message } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Connect4Game, Connect4Player } from './types/Connect4Types';
 import { GameStatus } from '../common/types/GameTypes';
@@ -7,6 +7,7 @@ import { Connect4UI } from './ui/Connect4UI';
 import { gameStats } from '../common/stats/GameStats';
 import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
+import { gameCooldownManager } from '../common/managers/CooldownManager';
 
 export class Connect4Manager {
     private games: Map<string, Connect4Game> = new Map();
@@ -198,30 +199,43 @@ export class Connect4Manager {
 
     private async updateGameStats(game: Connect4Game): Promise<void> {
         // Ne pas sauvegarder les stats contre le bot
-        if (game.player2.user === 'LuluxBot') return;
+        if (game.player2.user === 'LuluxBot') {
+            const stats = await gameStats.getStats(this.getUserId(game.player1.user));
+            
+            stats.global.gamesPlayed++;
+            stats.connect4.gamesPlayed++;
+            
+            if (game.wager > 0) {
+                stats.global.totalWager += game.wager;
+                stats.connect4.totalWager += game.wager;
+                
+                if (game.winner === game.player1) {
+                    stats.global.gamesWon++;
+                    stats.connect4.gamesWon++;
+                    // Le joueur gagne 2x sa mise
+                    stats.global.totalEarned += game.wager * 2;
+                    stats.connect4.totalEarned += game.wager * 2;
+                } else if (game.winner === game.player2) {
+                    stats.global.gamesLost++;
+                    stats.connect4.gamesLost++;
+                    // Pas de gains en cas de défaite
+                } else {
+                    stats.global.gamesTied++;
+                    stats.connect4.gamesTied++;
+                    // Le joueur récupère sa mise en cas d'égalité
+                    stats.global.totalEarned += game.wager;
+                    stats.connect4.totalEarned += game.wager;
+                }
+            }
+            
+            await gameStats.saveStats(this.getUserId(game.player1.user), stats);
+            return;
+        }
 
         const stats = await gameStats.getStats(this.getUserId(game.player1.user));
         const stats2 = await gameStats.getStats(this.getUserId(game.player2.user));
 
-        if (game.winner) {
-            if (game.winner === game.player1) {
-                stats.global.gamesWon++;
-                stats.connect4.gamesWon++;
-                stats2.global.gamesLost++;
-                stats2.connect4.gamesLost++;
-            } else {
-                stats.global.gamesLost++;
-                stats.connect4.gamesLost++;
-                stats2.global.gamesWon++;
-                stats2.connect4.gamesWon++;
-            }
-        } else {
-            stats.global.gamesTied++;
-            stats.connect4.gamesTied++;
-            stats2.global.gamesTied++;
-            stats2.connect4.gamesTied++;
-        }
-
+        // Mise à jour des statistiques de base
         stats.global.gamesPlayed++;
         stats.connect4.gamesPlayed++;
         stats2.global.gamesPlayed++;
@@ -232,16 +246,45 @@ export class Connect4Manager {
             stats.connect4.totalWager += game.wager;
             stats2.global.totalWager += game.wager;
             stats2.connect4.totalWager += game.wager;
+        }
 
-            if (game.winner) {
-                const winnings = game.wager * 2;
-                if (game.winner === game.player1) {
-                    stats.global.totalEarned += winnings;
-                    stats.connect4.totalEarned += winnings;
-                } else {
-                    stats2.global.totalEarned += winnings;
-                    stats2.connect4.totalEarned += winnings;
+        if (game.winner) {
+            if (game.winner === game.player1) {
+                stats.global.gamesWon++;
+                stats.connect4.gamesWon++;
+                stats2.global.gamesLost++;
+                stats2.connect4.gamesLost++;
+                
+                if (game.wager > 0) {
+                    // Le gagnant reçoit 2x sa mise
+                    stats.global.totalEarned += game.wager * 2;
+                    stats.connect4.totalEarned += game.wager * 2;
                 }
+            } else {
+                stats.global.gamesLost++;
+                stats.connect4.gamesLost++;
+                stats2.global.gamesWon++;
+                stats2.connect4.gamesWon++;
+                
+                if (game.wager > 0) {
+                    // Le gagnant reçoit 2x sa mise
+                    stats2.global.totalEarned += game.wager * 2;
+                    stats2.connect4.totalEarned += game.wager * 2;
+                }
+            }
+        } else {
+            // En cas d'égalité
+            stats.global.gamesTied++;
+            stats.connect4.gamesTied++;
+            stats2.global.gamesTied++;
+            stats2.connect4.gamesTied++;
+            
+            if (game.wager > 0) {
+                // Les deux joueurs récupèrent leur mise
+                stats.global.totalEarned += game.wager;
+                stats.connect4.totalEarned += game.wager;
+                stats2.global.totalEarned += game.wager;
+                stats2.connect4.totalEarned += game.wager;
             }
         }
 
@@ -271,7 +314,7 @@ export class Connect4Manager {
         if (message) {
             // Ajouter le bouton de replay
             const embed = Connect4UI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'connect4');
+            const replayButton = replayManager.createReplayButton(game.id, 'connect4', game.wager);
             
             try {
                 await message.edit({
@@ -279,17 +322,17 @@ export class Connect4Manager {
                     components: [replayButton]
                 });
 
-                // Supprimer le message après 30 secondes si personne n'a cliqué sur rejouer
-                setTimeout(async () => {
-                    try {
-                        if (this.gameMessages.has(game.id)) {
-                            await message.delete();
-                            this.gameMessages.delete(game.id);
-                        }
-                    } catch (error) {
-                        console.error('Erreur lors de la suppression du message:', error);
-                    }
-                }, 30000);
+                // Utiliser le gameCooldownManager pour gérer le timer
+                gameCooldownManager.startCooldown(
+                    `game_${game.id}`,
+                    30000, // 30 secondes
+                    () => {
+                        // Callback exécuté après le délai
+                        this.gameMessages.delete(game.id);
+                        this.games.delete(game.id);
+                    },
+                    message
+                );
             } catch (error) {
                 console.error('Erreur lors de la mise à jour du message final:', error);
             }

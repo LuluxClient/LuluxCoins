@@ -14,7 +14,7 @@ export class BlackjackUI {
         // Bouton Hit
         row.addComponents(
             new ButtonBuilder()
-                .setCustomId(`blackjack_${game.id}_hit`)
+                .setCustomId(`hit_blackjack_${game.id}`)
                 .setLabel(`HIT${game.player.splitHand ? ` (Main ${game.currentHand === 'main' ? '1' : '2'})` : ''}`)
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('👊')
@@ -23,7 +23,7 @@ export class BlackjackUI {
         // Bouton Stand
         row.addComponents(
             new ButtonBuilder()
-                .setCustomId(`blackjack_${game.id}_stand`)
+                .setCustomId(`stand_blackjack_${game.id}`)
                 .setLabel(`STAND${game.player.splitHand ? ` (Main ${game.currentHand === 'main' ? '1' : '2'})` : ''}`)
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('🛑')
@@ -33,7 +33,7 @@ export class BlackjackUI {
         if (game.canDouble) {
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`blackjack_${game.id}_double`)
+                    .setCustomId(`double_blackjack_${game.id}`)
                     .setLabel(`DOUBLE${game.player.splitHand ? ` (Main ${game.currentHand === 'main' ? '1' : '2'})` : ''}`)
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('💰')
@@ -44,7 +44,7 @@ export class BlackjackUI {
         if (game.canSplit) {
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`blackjack_${game.id}_split`)
+                    .setCustomId(`split_blackjack_${game.id}`)
                     .setLabel('SPLIT')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('✂️')

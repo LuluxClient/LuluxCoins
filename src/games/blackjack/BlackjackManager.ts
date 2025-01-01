@@ -506,13 +506,18 @@ export class BlackjackManager {
             return;
         }
 
-        // Créer une nouvelle partie avec les mêmes paramètres
-        const player = typeof game.player.user === 'string' ? 'bot' : game.player.user;
+        // Créer une nouvelle partie
         console.log('[DEBUG] Création d\'une nouvelle partie');
+        const player = typeof game.player.user === 'string' ? 'bot' : game.player.user;
         const newGame = await this.createGame(
             player === 'bot' ? game.player.user as User : player,
             game.wager
         );
+
+        if (!newGame) {
+            console.log('[DEBUG] Échec de la création de la nouvelle partie');
+            return;
+        }
 
         // Supprimer l'ancienne partie
         console.log('[DEBUG] Suppression de l\'ancienne partie');
@@ -525,17 +530,18 @@ export class BlackjackManager {
                 embeds: [BlackjackUI.createGameEmbed(game)],
                 components: [] // Supprimer les boutons
             });
-        }
 
-        // Créer un nouveau message pour la nouvelle partie
-        console.log('[DEBUG] Création du nouveau message');
-        if (oldMessage) {
+            // Créer un nouveau message pour la nouvelle partie
+            console.log('[DEBUG] Création du nouveau message');
             const newMessage = await oldMessage.reply({
                 embeds: [BlackjackUI.createGameEmbed(newGame)],
                 components: BlackjackUI.createGameButtons(newGame)
             });
             this.gameMessages.set(newGame.id, newMessage);
             console.log('[DEBUG] Nouveau message créé avec succès');
+
+            // Démarrer le timeout de la partie
+            this.startGameTimeout(newGame);
         }
     }
 }

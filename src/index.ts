@@ -80,8 +80,7 @@ client.once(Events.ClientReady, async () => {
 
     await politicsManager.init();
     console.log('Politics manager initialized successfully');
-
-    // Initialiser les managers de jeux
+    
     initGameManagers(client);
     console.log('Game managers initialized successfully');
 });

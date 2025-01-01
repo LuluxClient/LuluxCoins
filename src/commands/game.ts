@@ -5,8 +5,8 @@ import { connect4Manager } from '../games/connect4/Connect4Manager';
 import { blackjackManager } from '../games/blackjack/BlackjackManager';
 
 export const data = new SlashCommandBuilder()
-    .setName('duel')
-    .setDescription('Défie un joueur ou le bot à un jeu')
+    .setName('game')
+    .setDescription('Lance une partie contre un joueur ou le bot')
     .addStringOption(option =>
         option.setName('jeu')
             .setDescription('Le jeu auquel jouer')
@@ -23,16 +23,16 @@ export const data = new SlashCommandBuilder()
             .setMinValue(0))
     .addUserOption(option =>
         option.setName('joueur')
-            .setDescription('Le joueur à défier (laissez vide pour jouer contre le bot)')
+            .setDescription('Le joueur contre qui jouer (laissez vide pour jouer contre le bot)')
             .setRequired(false));
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    const challenged = interaction.options.getUser('joueur');
+    const opponent = interaction.options.getUser('joueur');
     const gameType = interaction.options.getString('jeu', true);
     const wager = interaction.options.getInteger('mise', true);
 
-    // Pour le blackjack, on ne peut pas défier un joueur
-    if (gameType === 'blackjack' && challenged) {
+    // Pour le blackjack, on ne peut pas jouer contre un joueur
+    if (gameType === 'blackjack' && opponent) {
         await interaction.reply({
             content: 'Le Blackjack se joue uniquement contre le bot !',
             ephemeral: true
@@ -46,11 +46,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         let buttons;
 
         if (gameType === 'tictactoe') {
-            game = await ticTacToeManager.createGame(interaction.user, challenged || 'bot', wager);
+            game = await ticTacToeManager.createGame(interaction.user, opponent || 'bot', wager);
             embed = ticTacToeManager.createGameEmbed(game);
             buttons = ticTacToeManager.createGameButtons(game);
         } else if (gameType === 'connect4') {
-            game = await connect4Manager.createGame(interaction.user, challenged || 'bot', wager);
+            game = await connect4Manager.createGame(interaction.user, opponent || 'bot', wager);
             embed = connect4Manager.createGameEmbed(game);
             buttons = connect4Manager.createGameButtons(game);
         } else if (gameType === 'blackjack') {
@@ -62,7 +62,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
 
         const message = await interaction.reply({ 
-            content: challenged ? `<@${challenged.id}>, tu as été défié !` : '',
+            content: opponent ? `<@${opponent.id}>, une partie a été lancée !` : '',
             embeds: [embed], 
             components: buttons,
             fetchReply: true 

@@ -10,7 +10,7 @@ import * as vendesleep from './commands/vendesleep';
 import * as roux from './commands/harcelement/roux';
 import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
-import * as duel from './commands/duel';
+import * as game from './commands/game';
 import * as gamestats from './commands/gamestats';
 
 const commands = [
@@ -24,7 +24,7 @@ const commands = [
     roux.data,
     music.data,
     triggerwords.data,
-    duel.data,
+    game.data,
     gamestats.data
 ].map(command => command.toJSON());
 

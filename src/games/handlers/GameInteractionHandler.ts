@@ -26,15 +26,7 @@ export class GameInteractionHandler {
                 return;
             }
 
-            // Gérer le replay séparément car il a un format différent
-            if (action === 'replay') {
-                console.log('[DEBUG] Traitement d\'une action replay');
-                const wager = parseInt(rest[0]);
-                await replayManager.handleReplayRequest(gameType, gameId, interaction.user.id, wager);
-                return;
-            }
-
-            // Gérer les autres actions de jeu
+            // Gérer les actions de jeu
             switch (gameType) {
                 case 'tictactoe': {
                     console.log('[DEBUG] Traitement d\'une action TicTacToe');
@@ -121,6 +113,7 @@ export class GameInteractionHandler {
                             await blackjackManager.handleSplit(gameId, interaction.user.id);
                             break;
                         case 'replay':
+                            console.log('[DEBUG] Traitement du replay Blackjack');
                             await blackjackManager.handleReplay(gameId, interaction.user.id);
                             break;
                     }

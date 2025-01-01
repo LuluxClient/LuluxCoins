@@ -152,8 +152,50 @@ export class GameStats {
     }
 
     private async readFromFile(): Promise<GameStatsData> {
-        const content = await readFile(this.statsFile, 'utf-8');
-        return JSON.parse(content);
+        try {
+            const content = await readFile(this.statsFile, 'utf-8');
+            const data = JSON.parse(content);
+            
+            // Ensure the data structure is correct
+            if (!data.users) {
+                data.users = {};
+            }
+
+            // Move any user data that's outside the users object
+            for (const key in data) {
+                if (key !== 'users' && typeof data[key] === 'object') {
+                    if (!data.users[key]) {
+                        data.users[key] = this.createEmptyUserStats();
+                    }
+                    // Merge the stats if they exist outside users
+                    const outsideStats = data[key];
+                    for (const gameType of ['global', 'tictactoe', 'connect4', 'blackjack']) {
+                        if (outsideStats[gameType]) {
+                            data.users[key][gameType] = {
+                                ...this.createEmptyGameTypeStats(),
+                                ...outsideStats[gameType]
+                            };
+                        }
+                    }
+                    delete data[key];
+                }
+            }
+
+            // Ensure all users have all required game types
+            for (const userId in data.users) {
+                if (!data.users[userId].global) data.users[userId].global = this.createEmptyGameTypeStats();
+                if (!data.users[userId].tictactoe) data.users[userId].tictactoe = this.createEmptyGameTypeStats();
+                if (!data.users[userId].connect4) data.users[userId].connect4 = this.createEmptyGameTypeStats();
+                if (!data.users[userId].blackjack) data.users[userId].blackjack = this.createEmptyGameTypeStats();
+            }
+
+            // Save the fixed structure back to file
+            await this.saveToFile(data);
+            return data;
+        } catch (error) {
+            console.error('Error reading stats file:', error);
+            return this.createEmptyStats();
+        }
     }
 
     private async saveToFile(data: GameStatsData): Promise<void> {

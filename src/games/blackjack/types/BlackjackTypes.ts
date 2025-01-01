@@ -23,7 +23,7 @@ export interface BlackjackPlayer {
 
 export interface BlackjackDealer {
     hand: Hand;
-    hiddenCard: Card | null;
+    hiddenCard: boolean;
 }
 
 export interface BlackjackGame {
@@ -32,11 +32,11 @@ export interface BlackjackGame {
     dealer: BlackjackDealer;
     deck: Card[];
     status: GameStatus;
+    winner: 'player' | 'dealer' | 'tie' | null;
     wager: number;
-    winner: 'player' | 'dealer' | 'push' | null;
-    lastMoveTimestamp: number;
+    playerStands: boolean;
     canDouble: boolean;
     canSplit: boolean;
-    playerStands: boolean;
     currentHand: 'main' | 'split';
+    lastMoveTimestamp: number;
 } 

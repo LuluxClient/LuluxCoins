@@ -7,6 +7,8 @@ import { BlackjackUI } from './ui/BlackjackUI';
 import { gameStats } from '../common/stats/GameStats';
 import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
+import { gameCooldownManager } from '../common/managers/CooldownManager';
+import { db } from '../../database/databaseManager';
 
 export class BlackjackManager {
     private games: Map<string, BlackjackGame> = new Map();
@@ -23,6 +25,9 @@ export class BlackjackManager {
             throw new Error(canStart.error);
         }
 
+        // Déduire la mise initiale
+        await db.updateBalance(player.id, wager, 'remove');
+
         const id = uuidv4();
         const deck = BlackjackLogic.createDeck();
         const playerHand = BlackjackLogic.createEmptyHand();
@@ -32,8 +37,7 @@ export class BlackjackManager {
         BlackjackLogic.addCardToHand(playerHand, BlackjackLogic.dealCard(deck));
         BlackjackLogic.addCardToHand(dealerHand, BlackjackLogic.dealCard(deck));
         BlackjackLogic.addCardToHand(playerHand, BlackjackLogic.dealCard(deck));
-        const hiddenCard = BlackjackLogic.dealCard(deck);
-        BlackjackLogic.addCardToHand(dealerHand, hiddenCard);
+        BlackjackLogic.addCardToHand(dealerHand, BlackjackLogic.dealCard(deck));
 
         const game: BlackjackGame = {
             id,
@@ -44,30 +48,21 @@ export class BlackjackManager {
             },
             dealer: {
                 hand: dealerHand,
-                hiddenCard
+                hiddenCard: true
             },
             deck,
             status: GameStatus.IN_PROGRESS,
-            wager,
             winner: null,
-            lastMoveTimestamp: Date.now(),
-            canDouble: BlackjackLogic.canDouble(playerHand),
-            canSplit: BlackjackLogic.canSplit(playerHand),
+            wager,
             playerStands: false,
-            currentHand: 'main'
+            canDouble: true,
+            canSplit: BlackjackLogic.canSplit(playerHand),
+            currentHand: 'main',
+            lastMoveTimestamp: Date.now()
         };
 
         this.games.set(id, game);
         activeGamesManager.addGame(id, player, 'bot');
-
-        // Si le joueur a un blackjack naturel, on passe directement au tour du croupier
-        if (playerHand.isNaturalBlackjack === true) {
-            game.playerStands = true;
-            setTimeout(() => this.playDealer(game), 1500);
-        }
-
-        // Démarrer le timer de timeout
-        this.startGameTimeout(game);
 
         return game;
     }
@@ -244,40 +239,71 @@ export class BlackjackManager {
     }
 
     private async playDealer(game: BlackjackGame): Promise<void> {
+        console.log('[DEALER] Début du tour du croupier');
+        
         // Révéler la carte cachée
-        game.dealer.hiddenCard = null;
+        game.dealer.hiddenCard = false;
         await this.updateGameMessage(game);
         
-        // Attendre 1.5 secondes après la révélation de la carte cachée
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Si le joueur a bust, pas besoin de jouer
+        const currentHand = game.currentHand === 'main' ? game.player.hand : game.player.splitHand!;
+        if (currentHand.value > 21) {
+            console.log('[DEALER] Le joueur a bust, victoire du croupier');
+            await this.endGame(game, 'dealer');
+            return;
+        }
 
-        // Le croupier tire des cartes jusqu'à 17 ou plus
-        while (BlackjackLogic.shouldDealerHit(game.dealer.hand)) {
+        // Le croupier tire des cartes jusqu'à avoir au moins 17
+        while (game.dealer.hand.value < 17) {
+            console.log('[DEALER] Le croupier tire une carte');
             const card = BlackjackLogic.dealCard(game.deck);
             BlackjackLogic.addCardToHand(game.dealer.hand, card);
             await this.updateGameMessage(game);
-            
-            // Attendre 1.5 secondes entre chaque carte
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            console.log('[DEALER] Nouvelle carte:', card);
         }
 
-        const winner = BlackjackLogic.determineWinner(game.player.hand, game.dealer.hand);
-        
-        // Attendre 1 seconde avant d'afficher le résultat final
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.endGame(game, winner);
+        // Déterminer le gagnant
+        if (game.dealer.hand.value > 21) {
+            console.log('[DEALER] Le croupier a bust, victoire du joueur');
+            await this.endGame(game, 'player');
+        } else if (game.dealer.hand.value > currentHand.value) {
+            console.log('[DEALER] Le croupier a une meilleure main');
+            await this.endGame(game, 'dealer');
+        } else if (game.dealer.hand.value < currentHand.value) {
+            console.log('[DEALER] Le joueur a une meilleure main');
+            await this.endGame(game, 'player');
+        } else {
+            console.log('[DEALER] Égalité');
+            await this.endGame(game, 'tie');
+        }
     }
 
-    private async endGame(game: BlackjackGame, winner: 'player' | 'dealer' | 'push'): Promise<void> {
-        console.log('[END] Début de endGame');
+    private async endGame(game: BlackjackGame, winner: 'player' | 'dealer' | 'tie'): Promise<void> {
         game.status = GameStatus.FINISHED;
         game.winner = winner;
 
+        // Mise à jour des statistiques
         await this.updateGameStats(game);
+
+        // Mise à jour du solde du joueur
+        const playerId = this.getUserId(game.player.user);
+        if (winner === 'player') {
+            if (game.player.hand.isNaturalBlackjack) {
+                // Blackjack naturel : gain de 2.5x la mise
+                const winnings = Math.floor(game.wager * 2.5);
+                await db.updateBalance(playerId, winnings, 'add');
+            } else {
+                // Victoire normale : gain de 2x la mise
+                await db.updateBalance(playerId, game.wager * 2, 'add');
+            }
+        } else if (winner === 'tie') {
+            // Égalité : remboursement de la mise
+            await db.updateBalance(playerId, game.wager, 'add');
+        }
+        // En cas de défaite, la mise est déjà perdue
 
         const message = this.gameMessages.get(game.id);
         if (message) {
-            // Ajouter le bouton de replay
             const embed = BlackjackUI.createGameEmbed(game);
             const replayButton = replayManager.createReplayButton(game.id, 'blackjack', game.wager);
             
@@ -287,17 +313,17 @@ export class BlackjackManager {
                     components: [replayButton]
                 });
 
-                // Supprimer le message après 30 secondes si personne n'a cliqué sur rejouer
-                setTimeout(async () => {
-                    try {
-                        if (this.gameMessages.has(game.id)) {
-                            await message.delete();
-                            this.gameMessages.delete(game.id);
-                        }
-                    } catch (error) {
-                        console.error('Erreur lors de la suppression du message:', error);
-                    }
-                }, 30000);
+                // Utiliser le gameCooldownManager pour gérer le timer
+                gameCooldownManager.startCooldown(
+                    `game_${game.id}`,
+                    30000, // 30 secondes
+                    () => {
+                        // Callback exécuté après le délai
+                        this.gameMessages.delete(game.id);
+                        this.games.delete(game.id);
+                    },
+                    message
+                );
             } catch (error) {
                 console.error('Erreur lors de la mise à jour du message final:', error);
             }
@@ -306,7 +332,6 @@ export class BlackjackManager {
         // Supprimer la partie de la liste des parties actives
         activeGamesManager.removeGame(game.id);
         this.games.delete(game.id);
-        console.log('[END] Fin de endGame');
     }
 
     private async updateGameStats(game: BlackjackGame): Promise<void> {

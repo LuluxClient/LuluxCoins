@@ -13,6 +13,7 @@ export interface Hand {
     value: number;
     isSoft: boolean;
     isNaturalBlackjack?: boolean;
+    wager?: number;
 }
 
 export interface BlackjackPlayer {
@@ -28,12 +29,20 @@ export interface BlackjackDealer {
 
 export interface BlackjackGame {
     id: string;
-    player: BlackjackPlayer;
-    dealer: BlackjackDealer;
+    player: {
+        user: User | 'LuluxBot';
+        hand: Hand;
+        splitHand: Hand | null;
+    };
+    dealer: {
+        hand: Hand;
+        hiddenCard: boolean;
+    };
     deck: Card[];
     status: GameStatus;
     winner: 'player' | 'dealer' | 'tie' | null;
     wager: number;
+    initialWager: number;
     playerStands: boolean;
     canDouble: boolean;
     canSplit: boolean;

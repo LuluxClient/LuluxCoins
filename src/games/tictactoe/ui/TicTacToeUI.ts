@@ -46,16 +46,9 @@ export class TicTacToeUI {
                 const position = i * 3 + j;
                 const button = new ButtonBuilder()
                     .setCustomId(`tictactoe_${game.id}_${position}`)
-                    .setStyle(ButtonStyle.Secondary);
-
-                if (game.board[position] === '❌' || game.board[position] === '⭕') {
-                    button.setLabel(game.board[position])
-                          .setDisabled(true);
-                } else {
-                    button.setLabel('⬜')
-                          .setDisabled(game.status !== GameStatus.IN_PROGRESS);
-                }
-
+                    .setStyle(ButtonStyle.Secondary)
+                    .setLabel(game.board[position])
+                    .setDisabled(game.status !== GameStatus.IN_PROGRESS || game.board[position] !== TicTacToeLogic.EMPTY_CELL);
                 row.addComponents(button);
             }
             rows.push(row);

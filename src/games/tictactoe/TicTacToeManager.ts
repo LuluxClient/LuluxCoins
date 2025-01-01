@@ -118,36 +118,6 @@ export class TicTacToeManager {
         if (!game) return;
 
         if (game.status === GameStatus.WAITING_FOR_PLAYER && game.player2.user instanceof User) {
-            // Message d'invitation pour un duel 1v1
-            const embed = new EmbedBuilder()
-                .setTitle('🎮 Invitation Morpion')
-                .setColor('#FFA500')
-                .setDescription(`${game.player1.user} défie ${game.player2.user} en 1v1 au Morpion${game.wager > 0 ? ` pour ${game.wager} ${config.luluxcoinsEmoji}` : ''} !`)
-                .addFields({ 
-                    name: 'Temps restant', 
-                    value: '60 secondes' 
-                });
-
-            const row = new ActionRowBuilder<ButtonBuilder>();
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`accept_tictactoe_${game.id}`)
-                    .setLabel('Accepter')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('✅'),
-                new ButtonBuilder()
-                    .setCustomId(`decline_tictactoe_${game.id}`)
-                    .setLabel('Refuser')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('❌')
-            );
-
-            await message.edit({
-                content: null,
-                embeds: [embed],
-                components: [row]
-            });
-
             // Mettre à jour le timer toutes les 5 secondes
             let timeLeft = 60;
             const timer = setInterval(async () => {
@@ -163,13 +133,22 @@ export class TicTacToeManager {
                     return;
                 }
 
-                embed.setFields({ 
-                    name: 'Temps restant', 
-                    value: `${timeLeft} secondes` 
-                });
-
                 try {
-                    await message.edit({ embeds: [embed], components: [row] });
+                    const oldEmbed = message.embeds[0].data;
+                    const embed = new EmbedBuilder()
+                        .setTitle(oldEmbed.title || '')
+                        .setColor(oldEmbed.color || 0)
+                        .setDescription(oldEmbed.description || '')
+                        .addFields({ 
+                            name: 'Temps restant', 
+                            value: `${timeLeft} secondes` 
+                        });
+
+                    await message.edit({
+                        content: `${game.player1.user} ${game.player2.user}`,
+                        embeds: [embed],
+                        components: message.components
+                    });
                 } catch (error) {
                     clearInterval(timer);
                 }

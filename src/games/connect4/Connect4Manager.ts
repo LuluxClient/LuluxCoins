@@ -121,36 +121,6 @@ export class Connect4Manager {
         if (!game) return;
 
         if (game.status === GameStatus.WAITING_FOR_PLAYER && game.player2.user instanceof User) {
-            // Message d'invitation pour un duel 1v1
-            const embed = new EmbedBuilder()
-                .setTitle('🎮 Invitation Puissance 4')
-                .setColor('#FFA500')
-                .setDescription(`${game.player1.user} défie ${game.player2.user} en 1v1 au Puissance 4${game.wager > 0 ? ` pour ${game.wager} ${config.luluxcoinsEmoji}` : ''} !`)
-                .addFields({ 
-                    name: 'Temps restant', 
-                    value: '60 secondes' 
-                });
-
-            const row = new ActionRowBuilder<ButtonBuilder>();
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`accept_connect4_${game.id}`)
-                    .setLabel('Accepter')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('✅'),
-                new ButtonBuilder()
-                    .setCustomId(`decline_connect4_${game.id}`)
-                    .setLabel('Refuser')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('❌')
-            );
-
-            await message.edit({
-                content: null,
-                embeds: [embed],
-                components: [row]
-            });
-
             // Mettre à jour le timer toutes les 5 secondes
             let timeLeft = 60;
             const timer = setInterval(async () => {
@@ -166,20 +136,28 @@ export class Connect4Manager {
                     return;
                 }
 
-                embed.setFields({ 
-                    name: 'Temps restant', 
-                    value: `${timeLeft} secondes` 
-                });
-
                 try {
-                    await message.edit({ embeds: [embed], components: [row] });
+                    const oldEmbed = message.embeds[0].data;
+                    const embed = new EmbedBuilder()
+                        .setTitle(oldEmbed.title || '')
+                        .setColor(oldEmbed.color || 0)
+                        .setDescription(oldEmbed.description || '')
+                        .addFields({ 
+                            name: 'Temps restant', 
+                            value: `${timeLeft} secondes` 
+                        });
+
+                    await message.edit({
+                        content: `${game.player1.user} ${game.player2.user}`,
+                        embeds: [embed],
+                        components: message.components
+                    });
                 } catch (error) {
                     clearInterval(timer);
                 }
             }, 5000);
         } else {
             // Message normal de jeu
-            // Ne mentionner que le joueur dont c'est le tour (sauf si c'est le bot)
             let content = '';
             if (game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot') {
                 content = `<@${game.currentTurn}>, c'est ton tour !`;
@@ -228,23 +206,7 @@ export class Connect4Manager {
             const isBoardFull = Connect4Logic.isBoardFull(game.board);
 
             if (hasWinner || isBoardFull) {
-                game.status = GameStatus.FINISHED;
-                if (hasWinner) {
-                    game.winner = currentPlayer;
-                }
-                await this.updateGameStats(game);
-                await this.updateGameMessage(game);
-                
-                activeGamesManager.removeGame(game.id);
-                this.games.delete(game.id);
-
-                const message = this.gameMessages.get(game.id);
-                if (message) {
-                    setTimeout(() => {
-                        message.delete().catch(() => {});
-                        this.gameMessages.delete(game.id);
-                    }, 30000);
-                }
+                await this.endGame(game, hasWinner ? currentPlayer : null);
             } else {
                 if (currentPlayer === game.player1) {
                     game.currentTurn = this.getUserId(game.player2.user);
@@ -446,7 +408,7 @@ export class Connect4Manager {
             try {
                 const embed = await Connect4UI.createGameEmbed(game);
                 await message.edit({
-                    content: '', // Pas de mention à la fin de la partie
+                    content: '',
                     embeds: [embed],
                     components: [replayManager.createReplayButton('connect4', game.id, game.wager)]
                 });
@@ -463,7 +425,7 @@ export class Connect4Manager {
                 // Utiliser le gameCooldownManager pour gérer le timer
                 gameCooldownManager.startCooldown(
                     `game_${game.id}`,
-                    30000, // 30 secondes
+                    30000,
                     () => {
                         this.gameMessages.delete(game.id);
                         this.games.delete(game.id);
@@ -475,9 +437,7 @@ export class Connect4Manager {
             }
         }
 
-        // Supprimer la partie de la liste des parties actives
         activeGamesManager.removeGame(game.id);
-        this.games.delete(game.id);
     }
 
     getGameMessage(gameId: string): Message | undefined {
@@ -522,10 +482,9 @@ export class Connect4Manager {
             this.gameMessages.delete(gameId);
             
             // Créer un nouveau message pour la nouvelle partie
-            const embed = await Connect4UI.createGameEmbed(newGame);
             const newMessage = await message.reply({
-                embeds: [embed],
-                components: Connect4UI.createGameButtons(newGame)
+                embeds: [await this.createGameEmbed(newGame)],
+                components: this.createGameButtons(newGame)
             });
             this.gameMessages.set(newGame.id, newMessage);
             
@@ -577,8 +536,11 @@ export class Connect4Manager {
 
     async handleInteraction(interaction: ButtonInteraction): Promise<void> {
         console.log('[DEBUG Connect4] Début handleInteraction');
-        const [gameType, gameId, action] = interaction.customId.split('_').slice(1);
-        console.log('[DEBUG Connect4] Parsed:', { gameType, gameId, action });
+        const customIdParts = interaction.customId.split('_');
+        const action = customIdParts[0];
+        const gameId = customIdParts[2];
+        
+        console.log('[DEBUG Connect4] Parsed:', { action, gameId });
 
         const game = this.games.get(gameId);
         if (!game) {
@@ -609,13 +571,28 @@ export class Connect4Manager {
     }
 
     private async handleAccept(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {
+        // Vérifier que c'est bien le joueur 2 qui accepte
+        if (interaction.user.id === (game.player1.user as User).id) {
+            await interaction.editReply({ 
+                content: 'Vous ne pouvez pas accepter votre propre défi !'
+            });
+            return;
+        }
+
+        // Vérifier que c'est bien le joueur défié qui accepte
+        if (game.player2.user instanceof User && interaction.user.id !== game.player2.user.id) {
+            await interaction.editReply({ 
+                content: 'Seul le joueur défié peut accepter cette partie !'
+            });
+            return;
+        }
+
         // Vérifier si le joueur 2 a assez d'argent
         if (game.wager > 0) {
             const player2Data = await db.getUser(interaction.user.id);
             if (!player2Data || player2Data.balance < game.wager) {
-                await interaction.reply({ 
-                    content: 'Vous n\'avez pas assez de LuluxCoins pour accepter cette partie !', 
-                    ephemeral: true 
+                await interaction.editReply({ 
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour accepter cette partie !'
                 });
                 // Rembourser le joueur 1
                 await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
@@ -628,40 +605,55 @@ export class Connect4Manager {
 
         // Démarrer la partie
         game.status = GameStatus.IN_PROGRESS;
+        game.player2 = {
+            user: interaction.user,
+            symbol: Connect4Logic.PLAYER_SYMBOLS[1]
+        };
         
-        // Mettre à jour le message avec le plateau de jeu
+        // Mettre à jour le message avec le plateau de jeu et ping les joueurs
         const embed = await Connect4UI.createGameEmbed(game);
-        await interaction.update({ 
-            content: null,
+        await interaction.editReply({ 
+            content: `${game.player1.user}, ${game.player2.user}, la partie commence ! C'est au tour de ${game.player1.user} !`,
             embeds: [embed],
             components: Connect4UI.createGameButtons(game)
         });
     }
 
     private async handleDecline(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {
-        // Rembourser le joueur 1
-        if (game.wager > 0) {
-            await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
-        }
+        try {
+            // Rembourser le joueur 1
+            if (game.wager > 0) {
+                await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
+            }
 
-        // Supprimer la partie
-        this.games.delete(game.id);
-        activeGamesManager.removeGame(game.id);
+            // Supprimer la partie
+            this.games.delete(game.id);
+            activeGamesManager.removeGame(game.id);
 
-        await interaction.update({ 
-            content: `${interaction.user.username} a refusé la partie !`,
-            embeds: [],
-            components: []
-        });
-
-        // Supprimer le message après 30 secondes
-        setTimeout(() => {
+            // Supprimer le message original et envoyer le message de refus
             const message = this.gameMessages.get(game.id);
             if (message) {
-                message.delete().catch(console.error);
+                // Envoyer un message temporaire
+                const declineMessage = await message.reply({
+                    content: `${interaction.user.username} a refusé la partie !`
+                });
+
+                await message.delete().catch(console.error);
                 this.gameMessages.delete(game.id);
+
+                // Supprimer le message de refus après 30 secondes
+                setTimeout(() => {
+                    declineMessage.delete().catch(console.error);
+                }, 30000);
             }
-        }, 30000);
+
+            // Répondre à l'interaction si elle n'a pas encore été traitée
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferUpdate().catch(() => {});
+            }
+        } catch (error) {
+            console.error('Erreur lors du refus de la partie:', error);
+        }
     }
 }
 

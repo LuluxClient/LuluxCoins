@@ -55,42 +55,72 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 embed = new EmbedBuilder()
                     .setColor(0xFFA500)
                     .setTitle('🎮 Défi Morpion')
-                    .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Morpion avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
+                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Morpion${wager > 0 ? ` pour ${wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                    .addFields({ 
+                        name: 'Temps restant', 
+                        value: '60 secondes' 
+                    });
+                buttons = ticTacToeManager.createGameButtons(game);
+
+                const message = await interaction.reply({ 
+                    content: `${interaction.user} ${opponent}`,
+                    embeds: [embed], 
+                    components: buttons,
+                    fetchReply: true 
+                });
+                ticTacToeManager.addGameMessage(game.id, message);
             } else {
                 embed = await TicTacToeUI.createGameEmbed(game);
+                buttons = ticTacToeManager.createGameButtons(game);
+                const message = await interaction.reply({ 
+                    embeds: [embed], 
+                    components: buttons,
+                    fetchReply: true 
+                });
+                ticTacToeManager.addGameMessage(game.id, message);
             }
-            buttons = ticTacToeManager.createGameButtons(game);
         } else if (gameType === 'connect4') {
             game = await connect4Manager.createGame(interaction.user, opponent || 'bot', wager);
             if (opponent) {
                 embed = new EmbedBuilder()
                     .setColor(0xFFA500)
                     .setTitle('🎮 Défi Puissance 4')
-                    .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Puissance 4 avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
+                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Puissance 4${wager > 0 ? ` pour ${wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                    .addFields({ 
+                        name: 'Temps restant', 
+                        value: '60 secondes' 
+                    });
+                buttons = connect4Manager.createGameButtons(game);
+
+                const message = await interaction.reply({ 
+                    content: `${interaction.user} ${opponent}`,
+                    embeds: [embed], 
+                    components: buttons,
+                    fetchReply: true 
+                });
+                connect4Manager.addGameMessage(game.id, message);
             } else {
                 embed = await Connect4UI.createGameEmbed(game);
+                buttons = connect4Manager.createGameButtons(game);
+                const message = await interaction.reply({ 
+                    embeds: [embed], 
+                    components: buttons,
+                    fetchReply: true 
+                });
+                connect4Manager.addGameMessage(game.id, message);
             }
-            buttons = connect4Manager.createGameButtons(game);
         } else if (gameType === 'blackjack') {
             game = await blackjackManager.createGame(interaction.user, wager);
             embed = await blackjackManager.createGameEmbed(game);
             buttons = blackjackManager.createGameButtons(game);
+            const message = await interaction.reply({ 
+                embeds: [embed], 
+                components: buttons,
+                fetchReply: true 
+            });
+            blackjackManager.addGameMessage(game.id, message);
         } else {
             throw new Error('Type de jeu non valide');
-        }
-
-        const message = await interaction.reply({ 
-            embeds: [embed], 
-            components: buttons,
-            fetchReply: true 
-        });
-
-        if (gameType === 'tictactoe') {
-            ticTacToeManager.addGameMessage(game.id, message);
-        } else if (gameType === 'connect4') {
-            connect4Manager.addGameMessage(game.id, message);
-        } else if (gameType === 'blackjack') {
-            blackjackManager.addGameMessage(game.id, message);
         }
 
     } catch (error: any) {

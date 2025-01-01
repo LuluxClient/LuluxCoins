@@ -8,6 +8,7 @@ import { gameStats } from '../common/stats/GameStats';
 import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
 import { gameCooldownManager } from '../common/managers/CooldownManager';
+import { db } from '../../database/databaseManager';
 
 export class TicTacToeManager {
     private games: Map<string, TicTacToeGame> = new Map();
@@ -17,6 +18,12 @@ export class TicTacToeManager {
         const canStart = activeGamesManager.canStartGame([player1, player2]);
         if (!canStart.canStart) {
             throw new Error(canStart.error);
+        }
+
+        // Déduire la mise initiale des deux joueurs
+        await db.updateBalance(player1.id, wager, 'remove');
+        if (player2 !== 'bot') {
+            await db.updateBalance(player2.id, wager, 'remove');
         }
 
         const id = uuidv4();

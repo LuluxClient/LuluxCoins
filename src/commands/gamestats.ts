@@ -5,15 +5,22 @@ import { config } from '../config';
 
 export const data = new SlashCommandBuilder()
     .setName('gamestats')
-    .setDescription('Affiche vos statistiques de jeu');
+    .setDescription('Affiche vos statistiques de jeu')
+    .addUserOption(option =>
+        option
+            .setName('joueur')
+            .setDescription('Le joueur dont vous voulez voir les statistiques')
+            .setRequired(false)
+    );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    const stats = await gameStats.getStats(interaction.user.id);
+    const targetUser = interaction.options.getUser('joueur') || interaction.user;
+    const stats = await gameStats.getStats(targetUser.id);
 
     const embed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('📊 Statistiques de jeu')
-        .setDescription(`Statistiques de <@${interaction.user.id}>`)
+        .setDescription(`Statistiques de <@${targetUser.id}>`)
         .addFields(
             { 
                 name: '🎮 Global', 
@@ -57,5 +64,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             }
         );
 
-    await interaction.reply({ embeds: [embed] });
+    const reply = await interaction.reply({ embeds: [embed], fetchReply: true });
+
+    // Auto-supprimer le message après 60 secondes
+    setTimeout(() => {
+        if (reply.deletable) {
+            reply.delete().catch(console.error);
+        }
+    }, 60000);
 } 

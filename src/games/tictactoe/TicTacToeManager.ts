@@ -1,4 +1,4 @@
-import { User, Message } from 'discord.js';
+import { User, Message, Client } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { TicTacToeGame, TicTacToePlayer } from './types/TicTacToeTypes';
 import { GameStatus } from '../common/types/GameTypes';
@@ -13,18 +13,34 @@ import { db } from '../../database/databaseManager';
 export class TicTacToeManager {
     private games: Map<string, TicTacToeGame> = new Map();
     private gameMessages: Map<string, Message> = new Map();
+    private client: Client;
+
+    constructor(client: Client) {
+        this.client = client;
+    }
 
     async createGame(player1: User, player2: User | 'bot', wager: number): Promise<TicTacToeGame> {
-        const canStart = activeGamesManager.canStartGame([player1, player2]);
+        const canStart = activeGamesManager.canStartGame([player1]);
         if (!canStart.canStart) {
             throw new Error(canStart.error);
         }
 
-        // Déduire la mise initiale des deux joueurs
-        await db.updateBalance(player1.id, wager, 'remove');
+        // Vérifier si les joueurs ont assez d'argent
+        const player1Data = await db.getUser(player1.id);
+        if (!player1Data || player1Data.balance < wager) {
+            throw new Error(`${player1.username} n'a pas assez de LuluxCoins pour jouer !`);
+        }
+        
         if (player2 !== 'bot') {
+            const player2Data = await db.getUser(player2.id);
+            if (!player2Data || player2Data.balance < wager) {
+                throw new Error(`${player2.username} n'a pas assez de LuluxCoins pour jouer !`);
+            }
             await db.updateBalance(player2.id, wager, 'remove');
         }
+
+        // Déduire la mise du joueur 1
+        await db.updateBalance(player1.id, wager, 'remove');
 
         const id = uuidv4();
         const startsFirst = Math.random() < 0.5;
@@ -297,6 +313,84 @@ export class TicTacToeManager {
     getGameMessage(gameId: string): Message | undefined {
         return this.gameMessages.get(gameId);
     }
+
+    async handleReplay(gameId: string, playerId: string): Promise<void> {
+        const game = this.games.get(gameId);
+        if (!game || game.status !== GameStatus.FINISHED) return;
+
+        // Vérifier si le joueur a assez d'argent pour rejouer
+        const userData = await db.getUser(playerId);
+        if (!userData || userData.balance < game.wager) {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                const reply = await message.reply({
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour rejouer !'
+                });
+                setTimeout(() => reply.delete().catch(console.error), 30000);
+            }
+            return;
+        }
+
+        // Créer une nouvelle partie avec les mêmes paramètres
+        const player1 = typeof game.player1.user === 'string' ? 'bot' : game.player1.user;
+        const player2 = typeof game.player2.user === 'string' ? 'bot' : game.player2.user;
+        const newGame = await this.createGame(
+            player1 === 'bot' ? game.player2.user as User : player1,
+            player2 === 'bot' ? 'bot' : player2 as User,
+            game.wager
+        );
+
+        // Mettre à jour le message avec la nouvelle partie
+        const message = this.gameMessages.get(gameId);
+        if (message) {
+            const newMessage = await message.reply({
+                embeds: [this.createGameEmbed(newGame)],
+                components: this.createGameButtons(newGame)
+            });
+            this.gameMessages.set(newGame.id, newMessage);
+        }
+    }
+
+    async handleAcceptGame(gameId: string, playerId: string): Promise<void> {
+        const game = this.games.get(gameId);
+        if (!game || game.status !== GameStatus.WAITING_FOR_PLAYER) return;
+
+        // Vérifier si le joueur a assez d'argent pour accepter la partie
+        const userData = await db.getUser(playerId);
+        if (!userData || userData.balance < game.wager) {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                const reply = await message.reply({
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour accepter la partie !'
+                });
+                setTimeout(() => reply.delete().catch(console.error), 30000);
+            }
+            return;
+        }
+
+        // Déduire la mise du joueur qui accepte
+        await db.updateBalance(playerId, game.wager, 'remove');
+
+        // Mettre à jour le statut de la partie
+        game.status = GameStatus.IN_PROGRESS;
+        game.player2 = {
+            user: await this.client.users.fetch(playerId),
+            symbol: '⭕'
+        };
+
+        // Mettre à jour le message
+        const message = this.gameMessages.get(game.id);
+        if (message) {
+            await message.edit({
+                embeds: [this.createGameEmbed(game)],
+                components: this.createGameButtons(game)
+            });
+        }
+    }
 }
 
-export const ticTacToeManager = new TicTacToeManager(); 
+export let ticTacToeManager: TicTacToeManager;
+
+export function initTicTacToeManager(client: Client) {
+    ticTacToeManager = new TicTacToeManager(client);
+} 

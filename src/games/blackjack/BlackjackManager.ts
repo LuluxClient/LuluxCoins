@@ -25,6 +25,12 @@ export class BlackjackManager {
             throw new Error(canStart.error);
         }
 
+        // Vérifier si le joueur a assez d'argent pour jouer
+        const userData = await db.getUser(player.id);
+        if (!userData || userData.balance < wager) {
+            throw new Error('Vous n\'avez pas assez de LuluxCoins pour jouer !');
+        }
+
         // Déduire la mise initiale
         await db.updateBalance(player.id, wager, 'remove');
 
@@ -162,23 +168,25 @@ export class BlackjackManager {
     }
 
     async handleDouble(gameId: string, playerId: string): Promise<void> {
-        console.log(`[DOUBLE] Début handleDouble - GameId: ${gameId}, PlayerId: ${playerId}`);
         const game = this.games.get(gameId);
-        if (!game) {
-            console.log('[DOUBLE] Jeu non trouvé');
+        if (!game || game.status !== GameStatus.IN_PROGRESS || game.playerStands || 
+            this.getUserId(game.player.user) !== playerId || !game.canDouble) return;
+
+        // Vérifier si le joueur a assez d'argent pour doubler
+        const userData = await db.getUser(playerId);
+        if (!userData || userData.balance < game.wager) {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                const reply = await message.reply({
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour doubler !'
+                });
+                setTimeout(() => reply.delete().catch(console.error), 30000);
+            }
             return;
         }
 
-        if (game.status !== GameStatus.IN_PROGRESS || game.playerStands || 
-            this.getUserId(game.player.user) !== playerId || !game.canDouble) {
-            console.log('[DOUBLE] Conditions invalides:', {
-                status: game.status,
-                playerStands: game.playerStands,
-                playerId: this.getUserId(game.player.user),
-                canDouble: game.canDouble
-            });
-            return;
-        }
+        // Déduire la mise supplémentaire pour le double
+        await db.updateBalance(playerId, game.wager, 'remove');
 
         console.log('[DOUBLE] Doublement de la mise');
         game.wager *= 2;
@@ -219,6 +227,22 @@ export class BlackjackManager {
         if (!game || game.status !== GameStatus.IN_PROGRESS || game.playerStands || 
             this.getUserId(game.player.user) !== playerId || !game.canSplit) return;
 
+        // Vérifier si le joueur a assez d'argent pour split
+        const userData = await db.getUser(playerId);
+        if (!userData || userData.balance < game.wager) {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                const reply = await message.reply({
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour split !'
+                });
+                setTimeout(() => reply.delete().catch(console.error), 30000);
+            }
+            return;
+        }
+
+        // Déduire la mise supplémentaire pour le split
+        await db.updateBalance(playerId, game.wager, 'remove');
+
         // Créer la main splittée
         game.player.splitHand = BlackjackLogic.createEmptyHand();
         
@@ -232,8 +256,8 @@ export class BlackjackManager {
 
         // Mettre à jour les états
         game.canSplit = false;
-        game.canDouble = true;
-        game.wager *= 2; // Double la mise totale
+        game.canDouble = userData.balance >= game.wager; // Vérifier si on peut encore doubler
+        game.wager *= 2; // Double la mise totale car on a deux mains
 
         await this.updateGameMessage(game);
     }
@@ -244,7 +268,7 @@ export class BlackjackManager {
         // Révéler la carte cachée
         game.dealer.hiddenCard = false;
         await this.updateGameMessage(game);
-        await new Promise(resolve => setTimeout(resolve, 1100)); // Délai pour voir la carte cachée
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Délai pour voir la carte cachée
         
         // Si le joueur a bust, pas besoin de jouer
         const currentHand = game.currentHand === 'main' ? game.player.hand : game.player.splitHand!;
@@ -260,7 +284,7 @@ export class BlackjackManager {
             const card = BlackjackLogic.dealCard(game.deck);
             BlackjackLogic.addCardToHand(game.dealer.hand, card);
             await this.updateGameMessage(game);
-            await new Promise(resolve => setTimeout(resolve, 1100)); // Délai entre chaque carte
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Délai entre chaque carte
             console.log('[DEALER] Nouvelle carte:', card);
         }
 
@@ -289,17 +313,42 @@ export class BlackjackManager {
 
         // Mise à jour du solde du joueur
         const playerId = this.getUserId(game.player.user);
+        const baseWager = game.wager / (game.player.splitHand ? 2 : 1); // Mise par main
+
         if (winner === 'player') {
-            if (game.player.hand.isNaturalBlackjack) {
-                // Blackjack naturel : gain de 2.5x la mise
-                const winnings = Math.floor(game.wager * 2.5);
-                await db.updateBalance(playerId, winnings, 'add');
+            if (game.player.splitHand) {
+                // Cas du split
+                let totalWinnings = 0;
+                // Vérifier la main principale
+                if (game.player.hand.value <= 21) {
+                    if (game.player.hand.isNaturalBlackjack) {
+                        totalWinnings += Math.floor(baseWager * 2.5);
+                    } else {
+                        totalWinnings += baseWager * 2;
+                    }
+                }
+                // Vérifier la main splittée
+                if (game.player.splitHand.value <= 21) {
+                    if (game.player.splitHand.isNaturalBlackjack) {
+                        totalWinnings += Math.floor(baseWager * 2.5);
+                    } else {
+                        totalWinnings += baseWager * 2;
+                    }
+                }
+                if (totalWinnings > 0) {
+                    await db.updateBalance(playerId, totalWinnings, 'add');
+                }
             } else {
-                // Victoire normale : gain de 2x la mise
-                await db.updateBalance(playerId, game.wager * 2, 'add');
+                // Cas normal
+                if (game.player.hand.isNaturalBlackjack) {
+                    const winnings = Math.floor(game.wager * 2.5);
+                    await db.updateBalance(playerId, winnings, 'add');
+                } else {
+                    await db.updateBalance(playerId, game.wager * 2, 'add');
+                }
             }
         } else if (winner === 'tie') {
-            // Égalité : remboursement de la mise
+            // En cas d'égalité, remboursement de la mise
             await db.updateBalance(playerId, game.wager, 'add');
         }
         // En cas de défaite, la mise est déjà perdue

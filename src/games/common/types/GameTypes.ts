@@ -4,7 +4,8 @@ export enum GameStatus {
     PENDING = 'PENDING',
     IN_PROGRESS = 'IN_PROGRESS',
     FINISHED = 'FINISHED',
-    CANCELLED = 'CANCELLED'
+    CANCELLED = 'CANCELLED',
+    WAITING_FOR_PLAYER = 'WAITING_FOR_PLAYER'
 }
 
 export enum GameType {

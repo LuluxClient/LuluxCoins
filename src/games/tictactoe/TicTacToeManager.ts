@@ -1,4 +1,4 @@
-import { User, Message, Client, ButtonInteraction } from 'discord.js';
+import { User, Message, ButtonInteraction, Client, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { TicTacToeGame, TicTacToePlayer } from './types/TicTacToeTypes';
 import { GameStatus } from '../common/types/GameTypes';
@@ -9,6 +9,7 @@ import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
 import { gameCooldownManager } from '../common/managers/CooldownManager';
 import { db } from '../../database/databaseManager';
+import { config } from '../../config';
 
 export class TicTacToeManager {
     private games: Map<string, TicTacToeGame> = new Map();
@@ -111,9 +112,81 @@ export class TicTacToeManager {
         return game;
     }
 
-    addGameMessage(gameId: string, message: Message): void {
+    async addGameMessage(gameId: string, message: Message): Promise<void> {
         this.gameMessages.set(gameId, message);
-        // Ne pas mettre à jour le message immédiatement
+        const game = this.games.get(gameId);
+        if (!game) return;
+
+        if (game.status === GameStatus.WAITING_FOR_PLAYER && game.player2.user instanceof User) {
+            // Message d'invitation pour un duel 1v1
+            const embed = new EmbedBuilder()
+                .setTitle('🎮 Invitation Morpion')
+                .setColor('#FFA500')
+                .setDescription(`${game.player1.user} défie ${game.player2.user} en 1v1 au Morpion${game.wager > 0 ? ` pour ${game.wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                .addFields({ 
+                    name: 'Temps restant', 
+                    value: '60 secondes' 
+                });
+
+            const row = new ActionRowBuilder<ButtonBuilder>();
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`accept_tictactoe_${game.id}`)
+                    .setLabel('Accepter')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId(`decline_tictactoe_${game.id}`)
+                    .setLabel('Refuser')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('❌')
+            );
+
+            await message.edit({
+                content: null,
+                embeds: [embed],
+                components: [row]
+            });
+
+            // Mettre à jour le timer toutes les 5 secondes
+            let timeLeft = 60;
+            const timer = setInterval(async () => {
+                timeLeft -= 5;
+                if (timeLeft <= 0 || !this.games.has(gameId)) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                const updatedGame = this.games.get(gameId);
+                if (!updatedGame || updatedGame.status !== GameStatus.WAITING_FOR_PLAYER) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                embed.setFields({ 
+                    name: 'Temps restant', 
+                    value: `${timeLeft} secondes` 
+                });
+
+                try {
+                    await message.edit({ embeds: [embed], components: [row] });
+                } catch (error) {
+                    clearInterval(timer);
+                }
+            }, 5000);
+        } else {
+            let content = '';
+            if (game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot') {
+                content = `<@${game.currentTurn}>, c'est ton tour !`;
+            }
+
+            const embed = await TicTacToeUI.createGameEmbed(game);
+            await message.edit({
+                content,
+                embeds: [embed],
+                components: TicTacToeUI.createGameButtons(game)
+            });
+        }
     }
 
     private cleanupGame(game: TicTacToeGame): void {
@@ -180,18 +253,17 @@ export class TicTacToeManager {
         const message = this.gameMessages.get(game.id);
         if (!message) return;
 
-        const embed = TicTacToeUI.createGameEmbed(game);
-        const buttons = TicTacToeUI.createGameButtons(game);
-
         try {
-            const content = game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot'
-                ? `<@${game.currentTurn}>, c'est ton tour !`
-                : undefined;
+            let content = '';
+            if (game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot') {
+                content = `<@${game.currentTurn}>, c'est ton tour !`;
+            }
 
-            await message.edit({ 
+            const embed = await TicTacToeUI.createGameEmbed(game);
+            await message.edit({
                 content,
-                embeds: [embed], 
-                components: buttons 
+                embeds: [embed],
+                components: TicTacToeUI.createGameButtons(game)
             });
         } catch (error) {
             console.error('Erreur lors de la mise à jour du message:', error);
@@ -313,22 +385,28 @@ export class TicTacToeManager {
 
         const message = this.gameMessages.get(game.id);
         if (message) {
-            // Ajouter le bouton de replay
-            const embed = TicTacToeUI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'tictactoe', game.wager);
-            
             try {
+                const embed = await TicTacToeUI.createGameEmbed(game);
                 await message.edit({
+                    content: '',
                     embeds: [embed],
-                    components: [replayButton]
+                    components: [replayManager.createReplayButton('tictactoe', game.id, game.wager)]
                 });
+
+                // Ajouter la demande de replay
+                replayManager.addReplayRequest(
+                    game.id,
+                    'tictactoe',
+                    this.getUserId(game.player1.user),
+                    typeof game.player2.user !== 'string' ? this.getUserId(game.player2.user) : undefined,
+                    game.wager
+                );
 
                 // Utiliser le gameCooldownManager pour gérer le timer
                 gameCooldownManager.startCooldown(
                     `game_${game.id}`,
                     30000, // 30 secondes
                     () => {
-                        // Callback exécuté après le délai
                         this.gameMessages.delete(game.id);
                         this.games.delete(game.id);
                     },
@@ -348,13 +426,15 @@ export class TicTacToeManager {
         return this.gameMessages.get(gameId);
     }
 
-    async handleReplay(gameId: string, playerId: string): Promise<void> {
+    async handleReplay(gameId: string, playerId: string, wager?: number): Promise<void> {
         const game = this.games.get(gameId);
         if (!game || game.status !== GameStatus.FINISHED) return;
 
+        const actualWager = wager ?? game.wager;
+
         // Vérifier si le joueur a assez d'argent pour rejouer
         const userData = await db.getUser(playerId);
-        if (!userData || userData.balance < game.wager) {
+        if (!userData || userData.balance < actualWager) {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
@@ -365,23 +445,37 @@ export class TicTacToeManager {
             return;
         }
 
-        // Créer une nouvelle partie avec les mêmes paramètres
+        // Créer une nouvelle partie
         const player1 = typeof game.player1.user === 'string' ? 'bot' : game.player1.user;
         const player2 = typeof game.player2.user === 'string' ? 'bot' : game.player2.user;
+
         const newGame = await this.createGame(
             player1 === 'bot' ? game.player2.user as User : player1,
             player2 === 'bot' ? 'bot' : player2 as User,
-            game.wager
+            actualWager
         );
 
-        // Mettre à jour le message avec la nouvelle partie
+        if (!newGame) return;
+
+        // Supprimer l'ancienne partie
+        this.games.delete(gameId);
         const message = this.gameMessages.get(gameId);
         if (message) {
+            this.gameMessages.delete(gameId);
+            
+            // Créer un nouveau message pour la nouvelle partie
             const newMessage = await message.reply({
-                embeds: [this.createGameEmbed(newGame)],
+                embeds: [await this.createGameEmbed(newGame)],
                 components: this.createGameButtons(newGame)
             });
             this.gameMessages.set(newGame.id, newMessage);
+            
+            // Supprimer l'ancien message
+            try {
+                await message.delete();
+            } catch (error) {
+                console.error('Erreur lors de la suppression de l\'ancien message:', error);
+            }
         }
     }
 
@@ -416,7 +510,7 @@ export class TicTacToeManager {
         const message = this.gameMessages.get(game.id);
         if (message) {
             await message.edit({
-                embeds: [this.createGameEmbed(game)],
+                embeds: [await this.createGameEmbed(game)],
                 components: this.createGameButtons(game)
             });
         }
@@ -479,8 +573,8 @@ export class TicTacToeManager {
         // Mettre à jour le message avec le plateau de jeu
         await interaction.update({ 
             content: null,
-            embeds: [TicTacToeUI.createGameEmbed(game)],
-            components: TicTacToeUI.createGameButtons(game)
+            embeds: [await this.createGameEmbed(game)],
+            components: this.createGameButtons(game)
         });
     }
 

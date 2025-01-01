@@ -1,41 +1,52 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, User, APIEmbed } from 'discord.js';
 import { Connect4Game } from '../types/Connect4Types';
 import { Connect4Logic } from '../logic/Connect4Logic';
 import { GameStatus } from '../../common/types/GameTypes';
 import { config } from '../../../config';
+import { db } from '../../../database/databaseManager';
 
 export class Connect4UI {
-    static createGameEmbed(game: Connect4Game): EmbedBuilder {
-        const embed = new EmbedBuilder()
-            .setColor('#FFA500')
-            .setTitle('Puissance 4')
-            .setDescription(this.formatBoard(game.board));
+    static async createGameEmbed(game: Connect4Game): Promise<APIEmbed> {
+        // Récupérer les soldes des joueurs
+        const player1Id = game.player1.user instanceof User ? game.player1.user.id : 'bot';
+        const player2Id = game.player2.user instanceof User ? game.player2.user.id : 'bot';
+        
+        const [player1Data, player2Data] = await Promise.all([
+            player1Id !== 'bot' ? db.getUser(player1Id) : null,
+            player2Id !== 'bot' ? db.getUser(player2Id) : null
+        ]);
 
-        const player1Name = game.player1.user === 'LuluxBot' ? 'LuluxBot' : `<@${game.player1.user.id}>`;
-        const player2Name = game.player2.user === 'LuluxBot' ? 'LuluxBot' : `<@${game.player2.user.id}>`;
+        const player1Balance = player1Data?.balance ?? 0;
+        const player2Balance = player2Data?.balance ?? 0;
 
-        embed.addFields(
-            { name: 'Joueur 1', value: `${player1Name} (${game.player1.symbol})`, inline: true },
-            { name: 'Joueur 2', value: `${player2Name} (${game.player2.symbol})`, inline: true },
-            { name: 'Mise', value: `${game.wager} ${config.luluxcoinsEmoji}`, inline: true }
-        );
-
-        if (game.status === GameStatus.FINISHED) {
-            if (game.winner) {
-                const winnerName = game.winner.user === 'LuluxBot' ? 'LuluxBot' : `<@${game.winner.user.id}>`;
-                embed.addFields({ 
-                    name: 'Résultat', 
-                    value: `🏆 ${winnerName} a gagné${game.wager > 0 ? ` et remporte ${game.wager * 2} ${config.luluxcoinsEmoji}` : ''} !` 
-                });
-            } else {
-                embed.addFields({ name: 'Résultat', value: '🤝 Match nul !' });
-            }
-        } else {
-            const currentPlayerName = game.currentTurn === 'bot' ? 'LuluxBot' : `<@${game.currentTurn}>`;
-            embed.addFields({ name: 'Tour actuel', value: `${currentPlayerName}` });
-        }
-
-        return embed;
+        return {
+            title: '🎮 Puissance 4',
+            color: 0xFFA500,
+            description: this.formatBoard(game.board),
+            fields: [
+                { 
+                    name: 'Joueurs', 
+                    value: `${game.player1.user instanceof User ? `${game.player1.user} (${player1Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player1.symbol}) VS ${game.player2.user instanceof User ? `${game.player2.user} (${player2Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player2.symbol})`,
+                    inline: false 
+                },
+                { 
+                    name: 'Mise', 
+                    value: `${game.wager} ${config.luluxcoinsEmoji}`,
+                    inline: true 
+                },
+                { 
+                    name: 'Tour actuel', 
+                    value: game.status === GameStatus.FINISHED 
+                        ? (game.winner 
+                            ? `🏆 ${game.winner.user instanceof User ? game.winner.user : 'LuluxBot'} a gagné ${game.wager > 0 ? `(+${game.wager * 2} ${config.luluxcoinsEmoji})` : ''}!` 
+                            : '🤝 Match nul !')
+                        : game.currentTurn === 'bot' 
+                            ? 'LuluxBot'
+                            : `<@${game.currentTurn}>`,
+                    inline: true 
+                }
+            ]
+        };
     }
 
     static createGameButtons(game: Connect4Game): ActionRowBuilder<ButtonBuilder>[] {

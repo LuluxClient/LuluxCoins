@@ -31,7 +31,8 @@ export class GameInteractionHandler {
                 case 'tictactoe': {
                     console.log('[DEBUG] Traitement d\'une action TicTacToe');
                     if (action === 'replay') {
-                        await ticTacToeManager.handleReplay(gameId, interaction.user.id);
+                        const wager = parseInt(rest[0]);
+                        await replayManager.handleReplayRequest('tictactoe', gameId, interaction.user.id, wager);
                         return;
                     }
 
@@ -58,7 +59,8 @@ export class GameInteractionHandler {
                 case 'connect4': {
                     console.log('[DEBUG] Traitement d\'une action Connect4');
                     if (action === 'replay') {
-                        await connect4Manager.handleReplay(gameId, interaction.user.id);
+                        const wager = parseInt(rest[0]);
+                        await replayManager.handleReplayRequest('connect4', gameId, interaction.user.id, wager);
                         return;
                     }
 
@@ -86,7 +88,9 @@ export class GameInteractionHandler {
                     console.log('[DEBUG] Traitement d\'une action Blackjack');
                     if (action === 'replay') {
                         console.log('[DEBUG] Traitement du replay Blackjack');
-                        await blackjackManager.handleReplay(gameId, interaction.user.id);
+                        const wager = parseInt(rest[0]);
+                        console.log('[DEBUG] Mise récupérée:', wager);
+                        await replayManager.handleReplayRequest('blackjack', gameId, interaction.user.id, wager);
                         return;
                     }
 

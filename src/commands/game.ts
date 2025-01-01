@@ -5,6 +5,8 @@ import { connect4Manager } from '../games/connect4/Connect4Manager';
 import { blackjackManager } from '../games/blackjack/BlackjackManager';
 import { EmbedBuilder } from '@discordjs/builders';
 import { config } from '../config';
+import { TicTacToeUI } from '../games/tictactoe/ui/TicTacToeUI';
+import { Connect4UI } from '../games/connect4/ui/Connect4UI';
 
 export const data = new SlashCommandBuilder()
     .setName('game')
@@ -55,7 +57,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .setTitle('🎮 Défi Morpion')
                     .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Morpion avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
             } else {
-                embed = ticTacToeManager.createGameEmbed(game);
+                embed = await TicTacToeUI.createGameEmbed(game);
             }
             buttons = ticTacToeManager.createGameButtons(game);
         } else if (gameType === 'connect4') {
@@ -66,12 +68,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .setTitle('🎮 Défi Puissance 4')
                     .setDescription(`<@${opponent.id}>, <@${interaction.user.id}> te défie en 1v1 en Puissance 4 avec une mise de ${wager} ${config.luluxcoinsEmoji}`);
             } else {
-                embed = connect4Manager.createGameEmbed(game);
+                embed = await Connect4UI.createGameEmbed(game);
             }
             buttons = connect4Manager.createGameButtons(game);
         } else if (gameType === 'blackjack') {
             game = await blackjackManager.createGame(interaction.user, wager);
-            embed = blackjackManager.createGameEmbed(game);
+            embed = await blackjackManager.createGameEmbed(game);
             buttons = blackjackManager.createGameButtons(game);
         } else {
             throw new Error('Type de jeu non valide');

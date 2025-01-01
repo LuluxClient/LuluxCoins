@@ -1,19 +1,32 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, User } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, User, APIEmbed } from 'discord.js';
 import { TicTacToeGame } from '../types/TicTacToeTypes';
 import { GameStatus } from '../../common/types/GameTypes';
 import { TicTacToeLogic } from '../logic/TicTacToeLogic';
 import { config } from '../../../config';
+import { db } from '../../../database/databaseManager';
 
 export class TicTacToeUI {
-    static createGameEmbed(game: TicTacToeGame): EmbedBuilder {
-        const embed = new EmbedBuilder()
-            .setTitle('🎮 Morpion')
-            .setColor('#FFA500')
-            .setDescription(TicTacToeLogic.formatBoard(game.board))
-            .addFields(
+    static async createGameEmbed(game: TicTacToeGame): Promise<APIEmbed> {
+        // Récupérer les soldes des joueurs
+        const player1Id = game.player1.user instanceof User ? game.player1.user.id : 'bot';
+        const player2Id = game.player2.user instanceof User ? game.player2.user.id : 'bot';
+        
+        const [player1Data, player2Data] = await Promise.all([
+            player1Id !== 'bot' ? db.getUser(player1Id) : null,
+            player2Id !== 'bot' ? db.getUser(player2Id) : null
+        ]);
+
+        const player1Balance = player1Data?.balance ?? 0;
+        const player2Balance = player2Data?.balance ?? 0;
+
+        return {
+            title: '🎮 Morpion',
+            color: 0xFFA500,
+            description: TicTacToeLogic.formatBoard(game.board),
+            fields: [
                 { 
                     name: 'Joueurs', 
-                    value: `${game.player1.user instanceof User ? game.player1.user : 'LuluxBot'} (${game.player1.symbol}) VS ${game.player2.user instanceof User ? game.player2.user : 'LuluxBot'} (${game.player2.symbol})`,
+                    value: `${game.player1.user instanceof User ? `${game.player1.user} (${player1Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player1.symbol}) VS ${game.player2.user instanceof User ? `${game.player2.user} (${player2Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player2.symbol})`,
                     inline: false 
                 },
                 { 
@@ -32,9 +45,8 @@ export class TicTacToeUI {
                             : `<@${game.currentTurn}>`,
                     inline: true 
                 }
-            );
-
-        return embed;
+            ]
+        };
     }
 
     static createGameButtons(game: TicTacToeGame): ActionRowBuilder<ButtonBuilder>[] {

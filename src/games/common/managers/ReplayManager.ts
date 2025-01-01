@@ -3,6 +3,7 @@ import { ticTacToeManager } from '../../tictactoe/TicTacToeManager';
 import { connect4Manager } from '../../connect4/Connect4Manager';
 import { blackjackManager } from '../../blackjack/BlackjackManager';
 import { activeGamesManager } from '../managers/ActiveGamesManager';
+import { gameCooldownManager } from './CooldownManager';
 
 class ReplayManager {
     private client: Client | null = null;
@@ -18,43 +19,54 @@ class ReplayManager {
         this.client = client;
     }
 
-    createReplayButton(gameId: string, gameType: 'tictactoe' | 'connect4' | 'blackjack', wager: number): ActionRowBuilder<ButtonBuilder> {
-        const replayButton = new ButtonBuilder()
-            .setCustomId(`replay_${gameType}_${gameId}_${wager}`)
-            .setLabel('REJOUER')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('🔄');
-
-        return new ActionRowBuilder<ButtonBuilder>().addComponents(replayButton);
+    createReplayButton(gameType: string, gameId: string, wager: number) {
+        console.log('[DEBUG] Création du bouton replay avec mise:', wager);
+        return new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`replay_${gameType}_${gameId}_${wager}`)
+                .setLabel('REJOUER')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🔄')
+        );
     }
 
     async handleReplayRequest(gameType: string, gameId: string, playerId: string, wager: number): Promise<void> {
-        if (!this.client) return;
+        console.log('[REPLAY] Début handleReplayRequest:', { gameType, gameId, playerId, wager });
+        if (!this.client) {
+            console.log('[REPLAY] Client non initialisé');
+            return;
+        }
         
         try {
+            console.log('[REPLAY] Récupération de l\'utilisateur');
             const player1 = await this.client.users.fetch(playerId);
+            console.log('[REPLAY] Recherche de l\'ancien message');
             const oldMessage = await this.findGameMessage(gameId);
-
-            // Supprimer l'ancienne partie et son message
-            activeGamesManager.removeGame(gameId);
-            if (oldMessage) {
-                try {
-                    await oldMessage.delete();
-                } catch (error) {
-                    console.error('Erreur lors de la suppression de l\'ancien message:', error);
-                }
+            if (!oldMessage) {
+                console.log('[REPLAY] Ancien message non trouvé');
+                return;
             }
 
-            // Créer une nouvelle partie
-            let newGame;
-            const channel = oldMessage?.channel as TextChannel;
-            if (!channel) return;
+            console.log('[REPLAY] Annulation du cooldown');
+            gameCooldownManager.clearCooldown(`game_${gameId}`);
 
+            console.log('[REPLAY] Suppression de l\'ancienne partie');
+            activeGamesManager.removeGame(gameId);
+
+            console.log('[REPLAY] Récupération du canal');
+            const channel = oldMessage.channel as TextChannel;
+            if (!channel) {
+                console.log('[REPLAY] Canal non trouvé');
+                return;
+            }
+
+            console.log('[REPLAY] Création de la nouvelle partie');
+            let newGame;
             switch (gameType) {
                 case 'tictactoe':
                     newGame = await ticTacToeManager.createGame(player1, 'bot', wager);
                     const newTicTacToeMessage = await channel.send({
-                        embeds: [ticTacToeManager.createGameEmbed(newGame)],
+                        embeds: [await ticTacToeManager.createGameEmbed(newGame)],
                         components: ticTacToeManager.createGameButtons(newGame)
                     });
                     ticTacToeManager.addGameMessage(newGame.id, newTicTacToeMessage);
@@ -62,7 +74,7 @@ class ReplayManager {
                 case 'connect4':
                     newGame = await connect4Manager.createGame(player1, 'bot', wager);
                     const newConnect4Message = await channel.send({
-                        embeds: [connect4Manager.createGameEmbed(newGame)],
+                        embeds: [await connect4Manager.createGameEmbed(newGame)],
                         components: connect4Manager.createGameButtons(newGame)
                     });
                     connect4Manager.addGameMessage(newGame.id, newConnect4Message);
@@ -76,8 +88,17 @@ class ReplayManager {
                     blackjackManager.addGameMessage(newGame.id, newBlackjackMessage);
                     break;
             }
+
+            console.log('[REPLAY] Suppression de l\'ancien message');
+            try {
+                await oldMessage.delete();
+            } catch (error) {
+                console.error('[REPLAY] Erreur lors de la suppression de l\'ancien message:', error);
+            }
+
+            console.log('[REPLAY] Replay terminé avec succès');
         } catch (error) {
-            console.error('Erreur lors de la gestion de la demande de replay:', error);
+            console.error('[REPLAY] Erreur lors de la gestion de la demande de replay:', error);
         }
     }
 

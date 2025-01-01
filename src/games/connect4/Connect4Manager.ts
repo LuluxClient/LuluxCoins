@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, User, Message, Client, ButtonInteraction } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, User, Message, Client, ButtonInteraction, EmbedBuilder } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Connect4Game, Connect4Player } from './types/Connect4Types';
 import { GameStatus } from '../common/types/GameTypes';
@@ -9,6 +9,7 @@ import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
 import { gameCooldownManager } from '../common/managers/CooldownManager';
 import { db } from '../../database/databaseManager';
+import { config } from '../../config';
 
 export class Connect4Manager {
     private games: Map<string, Connect4Game> = new Map();
@@ -114,9 +115,83 @@ export class Connect4Manager {
         return game;
     }
 
-    addGameMessage(gameId: string, message: Message): void {
+    async addGameMessage(gameId: string, message: Message): Promise<void> {
         this.gameMessages.set(gameId, message);
-        // Ne pas mettre à jour le message immédiatement
+        const game = this.games.get(gameId);
+        if (!game) return;
+
+        if (game.status === GameStatus.WAITING_FOR_PLAYER && game.player2.user instanceof User) {
+            // Message d'invitation pour un duel 1v1
+            const embed = new EmbedBuilder()
+                .setTitle('🎮 Invitation Puissance 4')
+                .setColor('#FFA500')
+                .setDescription(`${game.player1.user} défie ${game.player2.user} en 1v1 au Puissance 4${game.wager > 0 ? ` pour ${game.wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                .addFields({ 
+                    name: 'Temps restant', 
+                    value: '60 secondes' 
+                });
+
+            const row = new ActionRowBuilder<ButtonBuilder>();
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`accept_connect4_${game.id}`)
+                    .setLabel('Accepter')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId(`decline_connect4_${game.id}`)
+                    .setLabel('Refuser')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('❌')
+            );
+
+            await message.edit({
+                content: null,
+                embeds: [embed],
+                components: [row]
+            });
+
+            // Mettre à jour le timer toutes les 5 secondes
+            let timeLeft = 60;
+            const timer = setInterval(async () => {
+                timeLeft -= 5;
+                if (timeLeft <= 0 || !this.games.has(gameId)) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                const updatedGame = this.games.get(gameId);
+                if (!updatedGame || updatedGame.status !== GameStatus.WAITING_FOR_PLAYER) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                embed.setFields({ 
+                    name: 'Temps restant', 
+                    value: `${timeLeft} secondes` 
+                });
+
+                try {
+                    await message.edit({ embeds: [embed], components: [row] });
+                } catch (error) {
+                    clearInterval(timer);
+                }
+            }, 5000);
+        } else {
+            // Message normal de jeu
+            // Ne mentionner que le joueur dont c'est le tour (sauf si c'est le bot)
+            let content = '';
+            if (game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot') {
+                content = `<@${game.currentTurn}>, c'est ton tour !`;
+            }
+
+            const embed = await Connect4UI.createGameEmbed(game);
+            await message.edit({
+                content,
+                embeds: [embed],
+                components: Connect4UI.createGameButtons(game)
+            });
+        }
     }
 
     private getUserId(user: User | 'LuluxBot'): string {
@@ -236,17 +311,17 @@ export class Connect4Manager {
         if (!message) return;
 
         try {
-            const embed = Connect4UI.createGameEmbed(game);
-            const buttons = Connect4UI.createGameButtons(game);
+            // Ne mentionner que le joueur dont c'est le tour (sauf si c'est le bot)
+            let content = '';
+            if (game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot') {
+                content = `<@${game.currentTurn}>, c'est ton tour !`;
+            }
 
-            const content = game.status === GameStatus.IN_PROGRESS && game.currentTurn !== 'bot'
-                ? `<@${game.currentTurn}>, c'est ton tour !`
-                : '';
-
-            await message.edit({ 
+            const embed = await Connect4UI.createGameEmbed(game);
+            await message.edit({
                 content,
-                embeds: [embed], 
-                components: buttons 
+                embeds: [embed],
+                components: Connect4UI.createGameButtons(game)
             });
         } catch (error) {
             console.error('Erreur lors de la mise à jour du message:', error);
@@ -368,22 +443,28 @@ export class Connect4Manager {
 
         const message = this.gameMessages.get(game.id);
         if (message) {
-            // Ajouter le bouton de replay
-            const embed = Connect4UI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'connect4', game.wager);
-            
             try {
+                const embed = await Connect4UI.createGameEmbed(game);
                 await message.edit({
+                    content: '', // Pas de mention à la fin de la partie
                     embeds: [embed],
-                    components: [replayButton]
+                    components: [replayManager.createReplayButton('connect4', game.id, game.wager)]
                 });
+
+                // Ajouter la demande de replay
+                replayManager.addReplayRequest(
+                    game.id,
+                    'connect4',
+                    this.getUserId(game.player1.user),
+                    typeof game.player2.user !== 'string' ? this.getUserId(game.player2.user) : undefined,
+                    game.wager
+                );
 
                 // Utiliser le gameCooldownManager pour gérer le timer
                 gameCooldownManager.startCooldown(
                     `game_${game.id}`,
                     30000, // 30 secondes
                     () => {
-                        // Callback exécuté après le délai
                         this.gameMessages.delete(game.id);
                         this.games.delete(game.id);
                     },
@@ -403,13 +484,15 @@ export class Connect4Manager {
         return this.gameMessages.get(gameId);
     }
 
-    async handleReplay(gameId: string, playerId: string): Promise<void> {
+    async handleReplay(gameId: string, playerId: string, wager?: number): Promise<void> {
         const game = this.games.get(gameId);
         if (!game || game.status !== GameStatus.FINISHED) return;
 
+        const actualWager = wager ?? game.wager;
+
         // Vérifier si le joueur a assez d'argent pour rejouer
         const userData = await db.getUser(playerId);
-        if (!userData || userData.balance < game.wager) {
+        if (!userData || userData.balance < actualWager) {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
@@ -420,23 +503,38 @@ export class Connect4Manager {
             return;
         }
 
-        // Créer une nouvelle partie avec les mêmes paramètres
+        // Créer une nouvelle partie
         const player1 = typeof game.player1.user === 'string' ? 'bot' : game.player1.user;
         const player2 = typeof game.player2.user === 'string' ? 'bot' : game.player2.user;
+
         const newGame = await this.createGame(
             player1 === 'bot' ? game.player2.user as User : player1,
             player2 === 'bot' ? 'bot' : player2 as User,
-            game.wager
+            actualWager
         );
 
-        // Mettre à jour le message avec la nouvelle partie
+        if (!newGame) return;
+
+        // Supprimer l'ancienne partie
+        this.games.delete(gameId);
         const message = this.gameMessages.get(gameId);
         if (message) {
+            this.gameMessages.delete(gameId);
+            
+            // Créer un nouveau message pour la nouvelle partie
+            const embed = await Connect4UI.createGameEmbed(newGame);
             const newMessage = await message.reply({
-                embeds: [this.createGameEmbed(newGame)],
-                components: this.createGameButtons(newGame)
+                embeds: [embed],
+                components: Connect4UI.createGameButtons(newGame)
             });
             this.gameMessages.set(newGame.id, newMessage);
+            
+            // Supprimer l'ancien message
+            try {
+                await message.delete();
+            } catch (error) {
+                console.error('Erreur lors de la suppression de l\'ancien message:', error);
+            }
         }
     }
 
@@ -471,7 +569,7 @@ export class Connect4Manager {
         const message = this.gameMessages.get(game.id);
         if (message) {
             await message.edit({
-                embeds: [this.createGameEmbed(game)],
+                embeds: [await this.createGameEmbed(game)],
                 components: this.createGameButtons(game)
             });
         }
@@ -532,9 +630,10 @@ export class Connect4Manager {
         game.status = GameStatus.IN_PROGRESS;
         
         // Mettre à jour le message avec le plateau de jeu
+        const embed = await Connect4UI.createGameEmbed(game);
         await interaction.update({ 
             content: null,
-            embeds: [Connect4UI.createGameEmbed(game)],
+            embeds: [embed],
             components: Connect4UI.createGameButtons(game)
         });
     }

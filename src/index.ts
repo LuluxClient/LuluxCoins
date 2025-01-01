@@ -21,6 +21,10 @@ import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
 import { GameInteractionHandler } from './games/handlers/GameInteractionHandler';
 import { initGameManagers } from './games';
+import { initTicTacToeManager } from './games/tictactoe/TicTacToeManager';
+import { initConnect4Manager } from './games/connect4/Connect4Manager';
+import { initBlackjackManager } from './games/blackjack/BlackjackManager';
+import { replayManager } from './games/common/managers/ReplayManager';
 
 const client = new Client({
     intents: [
@@ -82,6 +86,11 @@ client.once(Events.ClientReady, async () => {
     console.log('Politics manager initialized successfully');
     
     initGameManagers(client);
+    initTicTacToeManager(client);
+    initConnect4Manager(client);
+    initBlackjackManager(client);
+    replayManager.setClient(client);
+
     console.log('Game managers initialized successfully');
 });
 

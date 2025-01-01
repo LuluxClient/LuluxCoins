@@ -1,4 +1,4 @@
-import { User, Message, Client } from 'discord.js';
+import { User, Message, Client, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BlackjackGame } from './types/BlackjackTypes';
 import { GameStatus } from '../common/types/GameTypes';
@@ -9,11 +9,13 @@ import { activeGamesManager } from '../common/managers/ActiveGamesManager';
 import { replayManager } from '../common/managers/ReplayManager';
 import { gameCooldownManager } from '../common/managers/CooldownManager';
 import { db } from '../../database/databaseManager';
+import { config } from '../../config';
 
 export class BlackjackManager {
     private games: Map<string, BlackjackGame> = new Map();
     private gameMessages: Map<string, Message> = new Map();
-    private readonly GAME_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    private gameTimers: Map<string, NodeJS.Timeout> = new Map();
+    private readonly GAME_TIMEOUT = 60000; // 60 secondes
     private client: Client;
 
     constructor(client: Client) {
@@ -30,14 +32,15 @@ export class BlackjackManager {
             throw new Error(canStart.error);
         }
 
-        // Vérifier si le joueur a assez d'argent pour jouer
-        const userData = await db.getUser(player.id);
-        if (!userData || userData.balance < wager) {
-            throw new Error('Vous n\'avez pas assez de LuluxCoins pour jouer !');
+        // Vérifier si le joueur a assez d'argent (seulement si la mise n'est pas 0)
+        if (wager > 0) {
+            const userData = await db.getUser(player.id);
+            if (!userData || userData.balance < wager) {
+                throw new Error(`Vous n'avez pas assez de LuluxCoins ! (Solde: ${userData?.balance ?? 0} LC)`);
+            }
+            // Déduire la mise du joueur
+            await db.updateBalance(player.id, wager, 'remove');
         }
-
-        // Déduire la mise initiale
-        await db.updateBalance(player.id, wager, 'remove');
 
         const id = uuidv4();
         const deck = BlackjackLogic.createDeck();
@@ -66,8 +69,8 @@ export class BlackjackManager {
             winner: null,
             wager,
             playerStands: false,
-            canDouble: true,
-            canSplit: BlackjackLogic.canSplit(playerHand),
+            canDouble: wager > 0, // Double seulement possible si mise > 0
+            canSplit: BlackjackLogic.canSplit(playerHand) && wager > 0, // Split seulement possible si mise > 0
             currentHand: 'main',
             lastMoveTimestamp: Date.now()
         };
@@ -78,11 +81,19 @@ export class BlackjackManager {
         return game;
     }
 
-    addGameMessage(gameId: string, message: Message): void {
+    async addGameMessage(gameId: string, message: Message): Promise<void> {
         this.gameMessages.set(gameId, message);
         const game = this.games.get(gameId);
         if (game) {
-            this.updateGameMessage(game);
+            // Récupérer le solde du joueur
+            const userData = await db.getUser(this.getUserId(game.player.user));
+            const balance = userData?.balance ?? 0;
+
+            await message.edit({
+                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.luluxcoinsEmoji})`,
+                embeds: [BlackjackUI.createGameEmbed(game)],
+                components: BlackjackUI.createGameButtons(game)
+            });
         }
     }
 
@@ -313,7 +324,6 @@ export class BlackjackManager {
         game.status = GameStatus.FINISHED;
         game.winner = winner;
 
-        // Mise à jour des statistiques
         await this.updateGameStats(game);
 
         // Mise à jour du solde du joueur
@@ -356,27 +366,32 @@ export class BlackjackManager {
             // En cas d'égalité, remboursement de la mise
             await db.updateBalance(playerId, game.wager, 'add');
         }
-        // En cas de défaite, la mise est déjà perdue
 
         const message = this.gameMessages.get(game.id);
         if (message) {
-            const embed = BlackjackUI.createGameEmbed(game);
-            const replayButton = replayManager.createReplayButton(game.id, 'blackjack', game.wager);
-            
             try {
                 await message.edit({
-                    embeds: [embed],
-                    components: [replayButton]
+                    embeds: [BlackjackUI.createGameEmbed(game)],
+                    components: [replayManager.createReplayButton('blackjack', game.id, game.wager)]
                 });
+
+                // Ajouter la demande de replay
+                replayManager.addReplayRequest(
+                    game.id,
+                    'blackjack',
+                    playerId,
+                    undefined,
+                    game.wager
+                );
 
                 // Utiliser le gameCooldownManager pour gérer le timer
                 gameCooldownManager.startCooldown(
                     `game_${game.id}`,
                     30000, // 30 secondes
                     () => {
-                        // Callback exécuté après le délai
                         this.gameMessages.delete(game.id);
                         this.games.delete(game.id);
+                        this.gameTimers.delete(game.id);
                     },
                     message
                 );
@@ -431,16 +446,27 @@ export class BlackjackManager {
     }
 
     private startGameTimeout(game: BlackjackGame): void {
-        setTimeout(() => {
+        // Annuler l'ancien timer s'il existe
+        const oldTimer = this.gameTimers.get(game.id);
+        if (oldTimer) {
+            clearTimeout(oldTimer);
+        }
+
+        // Créer un nouveau timer
+        const timer = setTimeout(() => {
             if (this.games.has(game.id) && game.status === GameStatus.IN_PROGRESS) {
                 const timeSinceLastMove = Date.now() - game.lastMoveTimestamp;
                 if (timeSinceLastMove >= this.GAME_TIMEOUT) {
                     this.endGame(game, 'dealer');
+                    this.gameTimers.delete(game.id);
                 } else {
                     this.startGameTimeout(game);
                 }
             }
         }, this.GAME_TIMEOUT);
+
+        // Stocker le nouveau timer
+        this.gameTimers.set(game.id, timer);
     }
 
     private async updateGameMessage(game: BlackjackGame): Promise<void> {
@@ -456,8 +482,13 @@ export class BlackjackManager {
             const embed = BlackjackUI.createGameEmbed(game);
             const buttons = BlackjackUI.createGameButtons(game);
 
+            // Récupérer le solde du joueur
+            const userData = await db.getUser(this.getUserId(game.player.user));
+            const balance = userData?.balance ?? 0;
+
             console.log('[UPDATE] Mise à jour du message');
             await message.edit({
+                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.luluxcoinsEmoji})`,
                 embeds: [embed],
                 components: buttons
             });
@@ -484,65 +515,16 @@ export class BlackjackManager {
         return this.gameMessages.get(gameId);
     }
 
-    async handleReplay(gameId: string, playerId: string): Promise<void> {
-        console.log('[DEBUG] Début handleReplay');
-        const game = this.games.get(gameId);
-        if (!game || game.status !== GameStatus.FINISHED) {
-            console.log('[DEBUG] Partie non trouvée ou non terminée');
-            return;
+    private clearGameTimers(gameId: string): void {
+        // Annuler le timer de jeu
+        const gameTimer = this.gameTimers.get(gameId);
+        if (gameTimer) {
+            clearTimeout(gameTimer);
+            this.gameTimers.delete(gameId);
         }
 
-        // Vérifier si le joueur a assez d'argent pour rejouer
-        const userData = await db.getUser(playerId);
-        if (!userData || userData.balance < game.wager) {
-            console.log('[DEBUG] Pas assez d\'argent pour rejouer');
-            const message = this.gameMessages.get(gameId);
-            if (message) {
-                const reply = await message.reply({
-                    content: 'Vous n\'avez pas assez de LuluxCoins pour rejouer !'
-                });
-                setTimeout(() => reply.delete().catch(console.error), 30000);
-            }
-            return;
-        }
-
-        // Créer une nouvelle partie
-        console.log('[DEBUG] Création d\'une nouvelle partie');
-        const player = typeof game.player.user === 'string' ? 'bot' : game.player.user;
-        const newGame = await this.createGame(
-            player === 'bot' ? game.player.user as User : player,
-            game.wager
-        );
-
-        if (!newGame) {
-            console.log('[DEBUG] Échec de la création de la nouvelle partie');
-            return;
-        }
-
-        // Supprimer l'ancienne partie
-        console.log('[DEBUG] Suppression de l\'ancienne partie');
-        this.games.delete(gameId);
-        const oldMessage = this.gameMessages.get(gameId);
-        if (oldMessage) {
-            this.gameMessages.delete(gameId);
-            // Mettre à jour le message de l'ancienne partie pour indiquer qu'elle est terminée
-            await oldMessage.edit({
-                embeds: [BlackjackUI.createGameEmbed(game)],
-                components: [] // Supprimer les boutons
-            });
-
-            // Créer un nouveau message pour la nouvelle partie
-            console.log('[DEBUG] Création du nouveau message');
-            const newMessage = await oldMessage.reply({
-                embeds: [BlackjackUI.createGameEmbed(newGame)],
-                components: BlackjackUI.createGameButtons(newGame)
-            });
-            this.gameMessages.set(newGame.id, newMessage);
-            console.log('[DEBUG] Nouveau message créé avec succès');
-
-            // Démarrer le timeout de la partie
-            this.startGameTimeout(newGame);
-        }
+        // Annuler le cooldown
+        gameCooldownManager.clearCooldown(`game_${gameId}`);
     }
 }
 

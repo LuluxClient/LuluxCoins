@@ -5,6 +5,18 @@ import { config } from '../../../config';
 
 export class BlackjackUI {
     static createGameButtons(game: BlackjackGame): ActionRowBuilder<ButtonBuilder>[] {
+        if (game.status === GameStatus.FINISHED) {
+            const row = new ActionRowBuilder<ButtonBuilder>();
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`replay_blackjack_${game.id}_${game.wager}`)
+                    .setLabel('REJOUER')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🔄')
+            );
+            return [row];
+        }
+
         if (game.status !== GameStatus.IN_PROGRESS || game.playerStands) {
             return [];
         }

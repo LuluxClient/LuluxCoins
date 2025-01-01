@@ -55,6 +55,8 @@ export class GameInteractionHandler {
                         if (!isNaN(position)) {
                             await ticTacToeManager.makeMove(gameId, position, interaction.user.id);
                         }
+                    } else if (action === 'replay') {
+                        await ticTacToeManager.handleReplay(gameId, interaction.user.id);
                     }
                     break;
                 }
@@ -77,6 +79,8 @@ export class GameInteractionHandler {
                         if (!isNaN(column)) {
                             await connect4Manager.makeMove(gameId, column, interaction.user.id);
                         }
+                    } else if (action === 'replay') {
+                        await connect4Manager.handleReplay(gameId, interaction.user.id);
                     }
                     break;
                 }
@@ -115,6 +119,9 @@ export class GameInteractionHandler {
                             break;
                         case 'split':
                             await blackjackManager.handleSplit(gameId, interaction.user.id);
+                            break;
+                        case 'replay':
+                            await blackjackManager.handleReplay(gameId, interaction.user.id);
                             break;
                     }
                     break;

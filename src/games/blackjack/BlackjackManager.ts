@@ -483,6 +483,41 @@ export class BlackjackManager {
     getGameMessage(gameId: string): Message | undefined {
         return this.gameMessages.get(gameId);
     }
+
+    async handleReplay(gameId: string, playerId: string): Promise<void> {
+        const game = this.games.get(gameId);
+        if (!game || game.status !== GameStatus.FINISHED) return;
+
+        // Vérifier si le joueur a assez d'argent pour rejouer
+        const userData = await db.getUser(playerId);
+        if (!userData || userData.balance < game.wager) {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                const reply = await message.reply({
+                    content: 'Vous n\'avez pas assez de LuluxCoins pour rejouer !'
+                });
+                setTimeout(() => reply.delete().catch(console.error), 30000);
+            }
+            return;
+        }
+
+        // Créer une nouvelle partie avec les mêmes paramètres
+        const player = typeof game.player.user === 'string' ? 'bot' : game.player.user;
+        const newGame = await this.createGame(
+            player === 'bot' ? game.player.user as User : player,
+            game.wager
+        );
+
+        // Mettre à jour le message avec la nouvelle partie
+        const message = this.gameMessages.get(gameId);
+        if (message) {
+            const newMessage = await message.reply({
+                embeds: [BlackjackUI.createGameEmbed(newGame)],
+                components: BlackjackUI.createGameButtons(newGame)
+            });
+            this.gameMessages.set(newGame.id, newMessage);
+        }
+    }
 }
 
 export let blackjackManager: BlackjackManager;

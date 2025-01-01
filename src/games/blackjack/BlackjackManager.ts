@@ -60,6 +60,12 @@ export class BlackjackManager {
         this.games.set(id, game);
         activeGamesManager.addGame(id, player, 'bot');
 
+        // Si le joueur a un blackjack naturel, on passe directement au tour du croupier
+        if (playerHand.isNaturalBlackjack === true) {
+            game.playerStands = true;
+            setTimeout(() => this.playDealer(game), 1500);
+        }
+
         // Démarrer le timer de timeout
         this.startGameTimeout(game);
 
@@ -108,6 +114,16 @@ export class BlackjackManager {
                 // Sinon, fin de la partie
                 console.log('[HIT] Joueur bust, fin de la partie');
                 await this.endGame(game, 'dealer');
+            }
+        } else if (BlackjackLogic.shouldStopAtValue(currentHand)) {
+            // Si on atteint 21, on passe automatiquement
+            if (game.player.splitHand && game.currentHand === 'main') {
+                game.currentHand = 'split';
+                game.canDouble = true;
+                await this.updateGameMessage(game);
+            } else {
+                game.playerStands = true;
+                await this.playDealer(game);
             }
         } else {
             console.log('[HIT] Mise à jour des états du jeu');

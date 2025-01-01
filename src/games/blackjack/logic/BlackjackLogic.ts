@@ -52,6 +52,7 @@ export class BlackjackLogic {
         let value = 0;
         let aces = 0;
         hand.isSoft = false;
+        hand.isNaturalBlackjack = false;
 
         // Compter d'abord les cartes non-As
         for (const card of hand.cards) {
@@ -73,6 +74,13 @@ export class BlackjackLogic {
         }
 
         hand.value = value;
+
+        // Vérifier si c'est un blackjack naturel (As + 10/J/Q/K)
+        if (hand.cards.length === 2 && hand.value === 21) {
+            const hasAce = hand.cards.some(card => card.value === 'A');
+            const hasTenCard = hand.cards.some(card => card.numericValue === 10);
+            hand.isNaturalBlackjack = hasAce && hasTenCard;
+        }
     }
 
     private static shuffleDeck(deck: Card[]): Card[] {
@@ -108,5 +116,9 @@ export class BlackjackLogic {
         // Stratégie de base pour le bot
         if (hand.value < 17) return 1; // Hit
         return 0; // Stand
+    }
+
+    static shouldStopAtValue(hand: Hand): boolean {
+        return hand.value === 21 || hand.isNaturalBlackjack === true;
     }
 } 

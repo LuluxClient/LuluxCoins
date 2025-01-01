@@ -70,7 +70,7 @@ export class BlackjackUI {
         } else {
             // À la fin ou quand le joueur a stand, on montre toutes les cartes
             dealerHandStr = game.dealer.hand.cards.map(card => card.toString()).join(' | ');
-            dealerValue = `${game.dealer.hand.value}`;
+            dealerValue = `${game.dealer.hand.value}${game.dealer.hand.isNaturalBlackjack ? ' BLACKJACK!' : ''}`;
         }
 
         // Ligne de séparation pour le croupier
@@ -91,7 +91,7 @@ export class BlackjackUI {
         const mainHandActive = game.player.splitHand && game.currentHand === 'main';
         embed.addFields({ 
             name: `${mainHandActive ? '▶️' : ''}Main ${game.player.splitHand ? '1' : 'Actuelle'}`, 
-            value: `${game.player.hand.cards.map(card => card.toString()).join(' | ')}\n📊 Valeur: ${game.player.hand.value}${game.player.hand.isSoft ? ' (Soft)' : ''}`,
+            value: `${game.player.hand.cards.map(card => card.toString()).join(' | ')}\n📊 Valeur: ${game.player.hand.value}${game.player.hand.isSoft ? ' (Soft)' : ''}${game.player.hand.isNaturalBlackjack ? ' BLACKJACK!' : ''}`,
             inline: false 
         });
 
@@ -100,7 +100,7 @@ export class BlackjackUI {
             const splitHandActive = game.currentHand === 'split';
             embed.addFields({ 
                 name: `${splitHandActive ? '▶️' : ''}Main 2`, 
-                value: `${game.player.splitHand.cards.map(card => card.toString()).join(' | ')}\n📊 Valeur: ${game.player.splitHand.value}${game.player.splitHand.isSoft ? ' (Soft)' : ''}`,
+                value: `${game.player.splitHand.cards.map(card => card.toString()).join(' | ')}\n📊 Valeur: ${game.player.splitHand.value}${game.player.splitHand.isSoft ? ' (Soft)' : ''}${game.player.splitHand.isNaturalBlackjack ? ' BLACKJACK!' : ''}`,
                 inline: false 
             });
         }

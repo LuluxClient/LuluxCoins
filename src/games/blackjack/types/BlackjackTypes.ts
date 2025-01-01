@@ -12,6 +12,7 @@ export interface Hand {
     cards: Card[];
     value: number;
     isSoft: boolean;
+    isNaturalBlackjack?: boolean;
 }
 
 export interface BlackjackPlayer {

@@ -12,23 +12,31 @@ export const tempChannelNames: TrollAction = {
         
         try {
             const textChannels = target.guild.channels.cache
-                .filter(c => c.isTextBased())
+                .filter(c => c.isTextBased() && !config.funnyChannelNames.includes(c.name))
                 .map(c => c as TextChannel);
 
-            console.log('Available text channels:', textChannels.length);
+            console.log('Available text channels to rename:', textChannels.length);
+
+            // Créer une copie du tableau des noms drôles
+            let availableNames = [...config.funnyChannelNames];
 
             // Renommer tous les salons textuels
             for (const channel of textChannels) {
-                // Sélectionner un nom aléatoire différent du nom actuel
-                let newName;
-                do {
-                    newName = config.funnyChannelNames[
-                        Math.floor(Math.random() * config.funnyChannelNames.length)
-                    ];
-                } while (newName === channel.name);
+                if (availableNames.length === 0) {
+                    console.log('No more available names, refilling the list');
+                    availableNames = [...config.funnyChannelNames];
+                }
+
+                // Sélectionner un nom aléatoire de la liste disponible
+                const randomIndex = Math.floor(Math.random() * availableNames.length);
+                const newName = availableNames[randomIndex];
                 
-                await channelNameManager.renameChannel(channel, newName);
-                console.log(`Renamed channel ${channel.name} to ${newName}`);
+                // Retirer le nom utilisé de la liste disponible
+                availableNames.splice(randomIndex, 1);
+                
+                console.log(`Attempting to rename channel ${channel.name} to ${newName}`);
+                const success = await channelNameManager.renameChannel(channel, newName);
+                console.log(`Rename attempt for ${channel.name} to ${newName}: ${success ? 'success' : 'failed'}`);
                 
                 // Petit délai entre chaque renommage pour éviter le rate limit
                 await new Promise(resolve => setTimeout(resolve, 1000));

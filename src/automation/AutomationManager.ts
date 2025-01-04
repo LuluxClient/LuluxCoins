@@ -18,20 +18,27 @@ export class AutomationManager {
     public readonly MIN_VOICE_TIME = 300000;   // 5 minutes en vocal
     public readonly MIN_MESSAGES = 5;          // Minimum de messages
     public readonly TROLL_CHANCE = 0.3;        // 30% de chance de troll
+    private readonly CHECK_INTERVAL = 300000;  // 5 minutes
     private checkInterval: NodeJS.Timeout;
     private client: Client | null = null;
     private lastActionUses: Map<string, number> = new Map();
-    private nextCheckTime: number = Date.now();
+    private nextCheckTime: number;
 
     constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
+        this.nextCheckTime = Date.now() + this.CHECK_INTERVAL;
         this.checkInterval = setInterval(() => {
             this.checkForTrollOpportunities();
-            this.nextCheckTime = Date.now() + 300000; // 5 minutes
-        }, 300000);
+            this.nextCheckTime = Date.now() + this.CHECK_INTERVAL;
+        }, this.CHECK_INTERVAL);
     }
 
     public getNextCheckTime(): number {
+        const now = Date.now();
+        // Si le nextCheckTime est dépassé, on le met à jour
+        if (this.nextCheckTime <= now) {
+            this.nextCheckTime = now + this.CHECK_INTERVAL;
+        }
         return this.nextCheckTime;
     }
 

@@ -48,6 +48,33 @@ export const data = new SlashCommandBuilder()
                     )
                     .setRequired(false)));
 
+function getActionConditions(action: TrollAction): string {
+    switch (action.name) {
+        case 'channelRoulette':
+            return '- Utilisateur en vocal\n- Au moins 2 salons vocaux disponibles';
+        case 'randomLocalSound':
+        case 'youtubeSound':
+            return '- Utilisateur en vocal';
+        case 'multiPing':
+            return '- Utilisateur actif dans le chat\n- Au moins 3 salons textuels disponibles';
+        case 'tempChannelNames':
+            return '- Au moins 3 salons textuels disponibles';
+        case 'discussion':
+            return '- Utilisateur actif dans le chat\n- Pas d\'autre question en cours';
+        case 'surpriseAI':
+            return '- Utilisateur actif (vocal ou chat)';
+        case 'forceNickname':
+            return '- Utilisateur sans surnom forcé actif\n- Permissions suffisantes';
+        default:
+            return 'Aucune condition spécifique';
+    }
+}
+
+function formatCooldown(ms: number): string {
+    const minutes = Math.floor(ms / 60000);
+    return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+}
+
 export async function execute(interaction: ChatInputCommandInteraction) {
     if (interaction.user.id !== ALLOWED_USER_ID) {
         const errorEmbed = new EmbedBuilder()
@@ -83,14 +110,40 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             break;
 
         case 'status':
+            const nextCheck = automationManager.getNextCheckTime();
+            const timeTillCheck = nextCheck ? nextCheck - Date.now() : 0;
+            const minutes = Math.floor(timeTillCheck / 60000);
+            const seconds = Math.floor((timeTillCheck % 60000) / 1000);
+
             const statusEmbed = new EmbedBuilder()
                 .setColor(trollStateManager.isEnabled() ? '#FF0000' : '#00FF00')
                 .setTitle('🎭 Status du Mode Troll')
                 .setDescription(`Le mode troll est actuellement **${trollStateManager.isEnabled() ? 'activé 😈' : 'désactivé 😇'}**`)
                 .addFields(
                     {
+                        name: '⏰ Prochain Check',
+                        value: `Dans ${minutes}m ${seconds}s`,
+                        inline: false
+                    },
+                    {
+                        name: '📊 Conditions de Troll',
+                        value: `- Utilisateur actif dans les 5 dernières minutes\n- Messages > ${automationManager.MIN_MESSAGES}\n- Temps en vocal > ${Math.floor(automationManager.MIN_VOICE_TIME/60000)}min\n- ${Math.floor(automationManager.TROLL_CHANCE * 100)}% de chance de troll`,
+                        inline: false
+                    },
+                    {
                         name: '🎯 Actions Disponibles',
-                        value: trollActions.map((a: TrollAction) => `\`${a.name}\`: ${a.description}`).join('\n'),
+                        value: trollActions.map((a: TrollAction) => {
+                            const lastUse = automationManager.getLastActionUse(a.name);
+                            const cooldownLeft = lastUse ? Math.max(0, (lastUse + a.cooldown) - Date.now()) : 0;
+                            const status = cooldownLeft > 0 ? `🔴 (${formatCooldown(cooldownLeft)})` : '🟢';
+                            
+                            return `${status} \`${a.name}\` (${formatCooldown(a.cooldown)})\n**Conditions:**\n${getActionConditions(a)}`;
+                        }).join('\n\n'),
+                        inline: false
+                    },
+                    {
+                        name: '🔍 Debug Info',
+                        value: `Dernière activité des utilisateurs:\n${automationManager.getDebugInfo()}`,
                         inline: false
                     }
                 )

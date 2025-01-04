@@ -15,15 +15,46 @@ export class AutomationManager {
     private readonly openai: OpenAI;
     private userContexts: Map<string, UserContext> = new Map();
     private readonly GLOBAL_COOLDOWN = 1800000; // 30 minutes
-    private readonly MIN_VOICE_TIME = 300000;   // 5 minutes en vocal
-    private readonly MIN_MESSAGES = 5;          // Minimum de messages
-    private readonly TROLL_CHANCE = 0.3;        // 30% de chance de troll
+    public readonly MIN_VOICE_TIME = 300000;   // 5 minutes en vocal
+    public readonly MIN_MESSAGES = 5;          // Minimum de messages
+    public readonly TROLL_CHANCE = 0.3;        // 30% de chance de troll
     private checkInterval: NodeJS.Timeout;
     private client: Client | null = null;
+    private lastActionUses: Map<string, number> = new Map();
+    private nextCheckTime: number = Date.now();
 
     constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
-        this.checkInterval = setInterval(() => this.checkForTrollOpportunities(), 300000);
+        this.checkInterval = setInterval(() => {
+            this.checkForTrollOpportunities();
+            this.nextCheckTime = Date.now() + 300000; // 5 minutes
+        }, 300000);
+    }
+
+    public getNextCheckTime(): number {
+        return this.nextCheckTime;
+    }
+
+    public getLastActionUse(actionName: string): number {
+        return this.lastActionUses.get(actionName) || 0;
+    }
+
+    public getDebugInfo(): string {
+        const now = Date.now();
+        let debug = '';
+        
+        for (const [userId, context] of this.userContexts.entries()) {
+            const timeSinceActivity = now - context.lastActivity.getTime();
+            const minutesSinceActivity = Math.floor(timeSinceActivity / 60000);
+            
+            debug += `<@${userId}>:\n`;
+            debug += `- Dernière activité: il y a ${minutesSinceActivity}min\n`;
+            debug += `- Messages: ${context.messageCount}\n`;
+            debug += `- Temps en vocal: ${Math.floor(context.voiceTime/60000)}min\n`;
+            debug += `- Dernier troll: ${context.lastTrollTime ? `il y a ${Math.floor((now - context.lastTrollTime)/60000)}min` : 'jamais'}\n\n`;
+        }
+        
+        return debug || 'Aucune activité enregistrée';
     }
 
     public setClient(client: Client) {
@@ -184,6 +215,15 @@ export class AutomationManager {
     public cleanup() {
         if (this.checkInterval) {
             clearInterval(this.checkInterval);
+        }
+    }
+
+    private async executeAction(action: TrollAction, target: GuildMember): Promise<void> {
+        try {
+            await action.execute(target);
+            this.lastActionUses.set(action.name, Date.now());
+        } catch (error) {
+            console.error(`Error executing action ${action.name}:`, error);
         }
     }
 } 

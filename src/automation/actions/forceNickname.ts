@@ -21,11 +21,10 @@ export const forceNickname: TrollAction = {
             // Forcer le surnom
             await forcedNicknameManager.forceNickname(target, nickname);
             
-            // Envoyer un message dans le salon
-            const channel = target.guild.channels.cache
-                .find(c => c.isTextBased()) as TextChannel;
+            // Envoyer un message dans le salon spécifique
+            const channel = target.guild.channels.cache.get('1179886753461571644') as TextChannel;
             
-            if (channel) {
+            if (channel?.isTextBased()) {
                 await channel.send(`🎭 ${target} est maintenant connu sous le nom de "${nickname}" pendant 4 heures ! Toute résistance est futile 😈`);
             }
             

@@ -12,6 +12,7 @@ import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
 import * as game from './commands/game';
 import * as gamestats from './commands/gamestats';
+import * as trolls from './commands/trolls';
 
 const commands = [
     balance.data,
@@ -25,7 +26,8 @@ const commands = [
     music.data,
     triggerwords.data,
     game.data,
-    gamestats.data
+    gamestats.data,
+    trolls.data
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.token);

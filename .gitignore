@@ -10,3 +10,5 @@ src/data/musicBans.json
 cookies.txt
 src/data/*.json
 src/data/triggerwords.json
+src/automation/database/channelNames.json
+src/automation/database/trollState.json

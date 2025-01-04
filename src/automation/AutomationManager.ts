@@ -1,6 +1,7 @@
 import { Client, GuildMember, Message } from 'discord.js';
-import { trollActions } from './actions/TrollActions';
+import { trollActions } from './actions';
 import OpenAI from 'openai';
+import { TrollAction } from './types/AutomationType';
 
 interface UserContext {
     userId: string;
@@ -22,7 +23,7 @@ export class AutomationManager {
 
     constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
-        this.checkInterval = setInterval(() => this.checkForTrollOpportunities(), 60000); // Vérifier toutes les minutes
+        this.checkInterval = setInterval(() => this.checkForTrollOpportunities(), 300000);
     }
 
     public setClient(client: Client) {
@@ -132,7 +133,7 @@ export class AutomationManager {
         if (await this.shouldTrollUser(member)) {
             const actionName = await this.selectAction(member);
             if (actionName) {
-                const action = trollActions.find(a => a.name === actionName);
+                const action = trollActions.find((a: TrollAction) => a.name === actionName);
                 if (action) {
                     console.log(`Exécution de l'action ${actionName} sur ${member.displayName}`);
                     await action.execute(member);
@@ -177,6 +178,12 @@ export class AutomationManager {
                 console.log(`Exécution de l'action ${actionName} sur ${target.displayName}`);
                 await action.execute(target);
             }
+        }
+    }
+
+    public cleanup() {
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
         }
     }
 } 

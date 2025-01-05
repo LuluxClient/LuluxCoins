@@ -6,6 +6,7 @@ import { join } from 'path';
 import { readdir } from 'fs/promises';
 import { createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus } from '@discordjs/voice';
 import { channelNameManager } from '../ChannelNameManager';
+import { trollConfig } from '../config/troll.config';
 
 const SOUNDS_FOLDER = './sounds';
 const openai = new OpenAI({ apiKey: config.openaiApiKey });
@@ -189,9 +190,10 @@ async function executeFakeConversation(target: GuildMember, details: any) {
 
 export const surpriseAI: TrollAction = {
     name: 'surpriseAI',
-    description: 'Laisse l\'IA inventer une action drôle et créative',
-    cooldown: 300000, // 5 minutes
-    execute: async (target: GuildMember) => {
+    description: 'Fait parler le bot de manière surprenante',
+    cooldown: trollConfig.actions.surpriseAI.cooldown,
+    canExecute: async (member) => member.voice.channel !== null,
+    execute: async (target) => {
         console.log('Executing surpriseAI for:', target.displayName);
         
         try {

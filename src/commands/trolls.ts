@@ -215,14 +215,25 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                             return `${status} \`${a.name}\` (${formatCooldown(a.cooldown)})\n**Conditions:**\n${getActionConditions(a)}`;
                         }).join('\n\n'),
                         inline: false
-                    },
-                    {
-                        name: '🔍 Debug Info',
-                        value: `Dernière activité des utilisateurs:\n${automationManager.getDebugInfo()}`,
-                        inline: false
                     }
-                )
-                .setTimestamp();
+                );
+
+                // Diviser les informations de débogage en plusieurs champs
+                const debugInfo = automationManager.getDebugInfo();
+                const users = debugInfo.split('\n\n').filter(u => u.trim());
+                
+                for (let i = 0; i < users.length; i += 2) {
+                    const chunk = users.slice(i, i + 2).join('\n\n');
+                    if (chunk.trim()) {
+                        statusEmbed.addFields({
+                            name: `👤 Utilisateurs (${i/2 + 1})`,
+                            value: chunk,
+                            inline: false
+                        });
+                    }
+                }
+
+                statusEmbed.setTimestamp();
             await interaction.reply({ embeds: [statusEmbed], ephemeral: true });
             break;
 

@@ -88,24 +88,25 @@ export class AutomationManager {
             .map(([userId, context]) => {
                 const member = guild.members.cache.get(userId);
                 if (!member) return null;
-                const chance = this.getTrollChance(member);
+                const { total, base, bonus, cooldown } = this.getTrollChanceDetails(member);
                 const isActive = (now - context.lastActivity.getTime() < trollConfig.global.activityTimeout);
-                return { userId, context, chance, isActive };
+                return { userId, context, total, base, bonus, cooldown, isActive };
             })
             .filter(entry => entry !== null && entry.isActive)
-            .sort((a, b) => b!.chance - a!.chance);
+            .sort((a, b) => (b!.base + b!.bonus) - (a!.base + a!.bonus));
 
         debug += `👥 Utilisateurs Éligibles\n`;
         for (const entry of userChances) {
             if (!entry) continue;
-            const { userId, context, chance } = entry;
+            const { userId, context, total, base, bonus, cooldown } = entry;
             const member = guild.members.cache.get(userId);
             if (!member) continue;
 
             const minutesSinceActivity = Math.floor((now - context.lastActivity.getTime()) / 60000);
             const inVoice = member.voice.channel ? '🎤' : '❌';
+            const cooldownIcon = cooldown ? '🕒 ' : '';
             
-            debug += `${inVoice} ${member.displayName}: ${Math.floor(chance * 100)}%\n`;
+            debug += `${inVoice} ${cooldownIcon}${member.displayName}: ${Math.floor(total * 100)}% (${Math.floor(base * 100)}% + ${Math.floor(bonus * 100)}%)\n`;
             debug += `├ Activité: ${minutesSinceActivity}min | Msgs: ${context.messageCount} | Vocal: ${Math.floor(context.voiceTime/60000)}min\n`;
             
             // Afficher le dernier troll basé sur la dernière tentative réussie ou lastTrollTime
@@ -154,7 +155,7 @@ export class AutomationManager {
         return context;
     }
 
-    public getTrollChance(member: GuildMember): number {
+    public getTrollChance(member: GuildMember, ignoreCooldown: boolean = false): number {
         const context = this.getOrCreateUserContext(member.id);
         const now = Date.now();
 
@@ -163,9 +164,9 @@ export class AutomationManager {
             return 0;
         }
 
-        // Vérifie le cooldown global de 4 heures
+        // Vérifie le cooldown global de 4 heures sauf si ignoreCooldown est true
         const FOUR_HOURS = 4 * 60 * 60 * 1000; // 4 heures en millisecondes
-        if (now - context.lastTrollTime < FOUR_HOURS) {
+        if (!ignoreCooldown && now - context.lastTrollTime < FOUR_HOURS) {
             return 0;
         }
 
@@ -386,15 +387,29 @@ export class AutomationManager {
         return context.baseChance;
     }
 
-    public getTrollChanceDetails(member: GuildMember): { total: number; base: number; bonus: number } {
-        const total = this.getTrollChance(member);
+    public getTrollChanceDetails(member: GuildMember): { total: number; base: number; bonus: number; cooldown: boolean } {
+        const context = this.getOrCreateUserContext(member.id);
+        const now = Date.now();
+        const FOUR_HOURS = 4 * 60 * 60 * 1000;
+        const inCooldown = now - context.lastTrollTime < FOUR_HOURS;
+
+        const total = this.getTrollChance(member, true); // Ignore le cooldown pour avoir la vraie chance
         const base = this.getBaseChance(member);
         const bonus = Math.max(0, total - base);
-        return { total, base, bonus };
+        
+        return { 
+            total: inCooldown ? 0 : total,  // 0 si en cooldown
+            base,                           // Toujours afficher la chance de base
+            bonus,                          // Toujours afficher le bonus
+            cooldown: inCooldown
+        };
     }
 
     public formatTrollChance(member: GuildMember): string {
-        const { total, base, bonus } = this.getTrollChanceDetails(member);
+        const { total, base, bonus, cooldown } = this.getTrollChanceDetails(member);
+        if (cooldown) {
+            return `🕒 En cooldown (${Math.floor(base * 100)}% + ${Math.floor(bonus * 100)}% bonus)`;
+        }
         return `${Math.floor(total * 100)}% (${Math.floor(base * 100)}% + ${Math.floor(bonus * 100)}% bonus)`;
     }
 

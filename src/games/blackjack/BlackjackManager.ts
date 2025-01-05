@@ -91,7 +91,7 @@ export class BlackjackManager {
         if (game) {
             // Récupérer le solde du joueur
             const userData = await db.getUser(this.getUserId(game.player.user));
-            const balance = userData?.balance ?? 0;
+            const balance = userData?.zermikoins ?? 0;
 
             await message.edit({
                 content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.zermikoinsEmoji})`,
@@ -243,7 +243,7 @@ export class BlackjackManager {
 
         // Vérifier si le joueur a assez d'argent pour split
         const userData = await db.getUser(playerId);
-        if (!userData || userData.balance < game.initialWager) {
+        if (!userData || userData.zermikoins < game.initialWager) {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
@@ -255,7 +255,7 @@ export class BlackjackManager {
         }
 
         // Déduire la mise supplémentaire pour le split
-        await db.updateBalance(playerId, game.initialWager, 'remove');
+        await db.updateBalance(playerId, game.initialWager, 'remove', 'zermikoins');
 
         // Créer la main splittée
         game.player.splitHand = BlackjackLogic.createEmptyHand();
@@ -275,7 +275,7 @@ export class BlackjackManager {
 
         // Mettre à jour les états
         game.canSplit = false;
-        game.canDouble = userData.balance >= game.initialWager;
+        game.canDouble = userData.zermikoins >= game.initialWager;
 
         await this.updateGameMessage(game);
     }
@@ -483,7 +483,7 @@ export class BlackjackManager {
 
             // Récupérer le solde du joueur
             const userData = await db.getUser(this.getUserId(game.player.user));
-            const balance = userData?.balance ?? 0;
+            const balance = userData?.zermikoins ?? 0;
 
             console.log('[UPDATE] Mise à jour du message');
             await message.edit({

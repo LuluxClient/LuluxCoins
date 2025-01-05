@@ -319,13 +319,11 @@ export class AutomationManager {
             try {
                 const member = await guild.members.fetch(userId);
                 if (member.voice.channel) {
-                    if (context.voiceTime === 0) {
+                    if (!context.lastVoiceJoin) {
                         context.lastVoiceJoin = Date.now();
                     }
                     
-                    context.voiceTime += trollConfig.global.checkInterval;
                     context.lastActivity = new Date();
-
                     await this.updateBaseChance(userId);
 
                     if (await this.shouldTrollUser(member)) {
@@ -335,15 +333,14 @@ export class AutomationManager {
                             if (action) {
                                 console.log(`Exécution de l'action ${actionName} sur ${member.displayName} (check vocal)`);
                                 await action.execute(member);
-                                
-                                context.lastTrollTime = Date.now();
-                                context.messageCount = 0;
-                                this.db.setUser(member.id, context);
                             }
                         }
                     }
-                } else {
-                    context.voiceTime = 0;
+                } else if (context.lastVoiceJoin) {
+                    // Si l'utilisateur vient de quitter le vocal, on met à jour son temps total
+                    const now = Date.now();
+                    context.voiceTime += now - context.lastVoiceJoin;
+                    context.lastVoiceJoin = 0;
                     this.db.setUser(userId, context);
                 }
             } catch (error) {
@@ -432,12 +429,15 @@ export class AutomationManager {
         const guild = await this.getGuild();
         if (!guild) return;
 
+        const now = Date.now();
         for (const [userId, context] of this.userContexts) {
             const member = guild.members.cache.get(userId);
-            if (member?.voice.channel && context.lastVoiceJoin) {
-                const now = Date.now();
-                context.voiceTime += now - context.lastVoiceJoin;
-                context.lastVoiceJoin = now;
+            if (member?.voice.channel) {
+                if (!context.lastVoiceJoin) {
+                    context.lastVoiceJoin = now;
+                }
+                // On met à jour le temps vocal périodiquement pour les utilisateurs en vocal
+                context.voiceTime += trollConfig.global.checkInterval;
                 await this.db.setUser(userId, context);
             }
         }

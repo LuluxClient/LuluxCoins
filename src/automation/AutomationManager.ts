@@ -62,6 +62,10 @@ export class AutomationManager {
             if (!(context.lastActivity instanceof Date)) {
                 context.lastActivity = new Date(context.lastActivity);
             }
+            // Ensure lastTrollTime is initialized
+            if (context.lastTrollTime === undefined) {
+                context.lastTrollTime = 0;
+            }
             this.userContexts.set(userId, context);
         }
     }
@@ -151,6 +155,10 @@ export class AutomationManager {
         const context = this.userContexts.get(userId)!;
         if (!(context.lastActivity instanceof Date)) {
             context.lastActivity = new Date(context.lastActivity);
+        }
+        // Ensure lastTrollTime is initialized
+        if (context.lastTrollTime === undefined) {
+            context.lastTrollTime = 0;
         }
         return context;
     }
@@ -465,5 +473,20 @@ export class AutomationManager {
                 await this.db.setUser(userId, context);
             }
         }
+    }
+
+    public async resetCooldown(member: GuildMember): Promise<void> {
+        const context = this.getOrCreateUserContext(member.id);
+        context.lastTrollTime = 0;
+        await this.db.setUser(member.id, context);
+    }
+
+    public async resetAllCooldowns(): Promise<void> {
+        const users = Array.from(this.userContexts.values());
+        for (const context of users) {
+            context.lastTrollTime = 0;
+            await this.db.setUser(context.userId, context);
+        }
+        console.log('Reset des cooldowns effectué');
     }
 } 

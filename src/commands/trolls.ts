@@ -73,7 +73,17 @@ export const data = new SlashCommandBuilder()
                 option
                     .setName('all')
                     .setDescription('Appliquer à tous les utilisateurs')
-                    .setRequired(false)));
+                    .setRequired(false)))
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('reset_cooldown')
+            .setDescription('Réinitialise le cooldown de troll')
+            .addUserOption(option =>
+                option
+                    .setName('user')
+                    .setDescription('Utilisateur dont il faut réinitialiser le cooldown (optionnel)')
+                    .setRequired(false)
+            ));
 
 function getActionConditions(action: TrollAction): string {
     switch (action.name) {
@@ -354,6 +364,27 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .setDescription(`Pourcentage de base défini à ${percentage}% pour ${targetUser.displayName}.`)
                     .setTimestamp();
                 await interaction.reply({ embeds: [setEmbed], ephemeral: true });
+            }
+            break;
+
+        case 'reset_cooldown':
+            const resetTarget = interaction.options.getMember('user');
+            if (resetTarget && resetTarget instanceof GuildMember) {
+                await automationManager.resetCooldown(resetTarget);
+                const resetCooldownEmbed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('🔄 Réinitialisation du Cooldown')
+                    .setDescription(`Le cooldown de troll a été réinitialisé pour ${resetTarget.displayName}.`)
+                    .setTimestamp();
+                await interaction.reply({ embeds: [resetCooldownEmbed], ephemeral: true });
+            } else {
+                await automationManager.resetAllCooldowns();
+                const resetAllCooldownsEmbed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('🔄 Réinitialisation du Cooldown')
+                    .setDescription('Tous les cooldowns de troll ont été réinitialisés.')
+                    .setTimestamp();
+                await interaction.reply({ embeds: [resetAllCooldownsEmbed], ephemeral: true });
             }
             break;
     }

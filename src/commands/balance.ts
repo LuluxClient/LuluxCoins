@@ -2,6 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from '
 import { db } from '../database/databaseManager';
 import { config } from '../config';
 import { automationManager } from '../automation/AutomationManager';
+import { UserData } from '../database/types';
 
 export const data = new SlashCommandBuilder()
     .setName('balance')
@@ -31,11 +32,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setColor('#FFD700')
         .setTitle(`💰 Balance de ${target.username}`)
         .setThumbnail(target.displayAvatarURL())
-        .addFields({
-            name: 'Zermikoins',
-            value: `${userData.zermikoins} ${config.zermikoinsEmoji}`,
-            inline: true
-        });
+        .addFields([
+            {
+                name: 'Zermikoins',
+                value: `${userData.zermikoins} ${config.zermikoinsEmoji}`,
+                inline: true
+            },
+            {
+                name: 'Luluxcoins',
+                value: `${userData.balance} ${config.luluxcoinsEmoji}`,
+                inline: true
+            }
+        ]);
 
     try {
         if (automationManager) {

@@ -387,9 +387,8 @@ export class AutomationManager {
         return { total, base, bonus };
     }
 
-    public formatTrollChance(member: GuildMember): string | null {
+    public formatTrollChance(member: GuildMember): string {
         const { total, base, bonus } = this.getTrollChanceDetails(member);
-        if (total <= 0) return null;
         return `${Math.floor(total * 100)}% (${Math.floor(base * 100)}% + ${Math.floor(bonus * 100)}% bonus)`;
     }
 

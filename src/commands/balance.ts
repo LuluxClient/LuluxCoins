@@ -48,13 +48,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     try {
         const trollChanceStr = automationManager.formatTrollChance(member);
-        if (trollChanceStr) {
-            embed.addFields({
-                name: '🎭 Chance de Troll',
-                value: trollChanceStr,
-                inline: true
-            });
-        }
+        embed.addFields({
+            name: '🎭 Chance de Troll',
+            value: trollChanceStr,
+            inline: true
+        });
     } catch (error) {
         console.error('Erreur lors de la récupération des chances de troll:', error);
         // Continue sans afficher les chances de troll

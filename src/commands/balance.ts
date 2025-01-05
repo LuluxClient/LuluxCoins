@@ -1,8 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { db } from '../database/databaseManager';
 import { config } from '../config';
-import { automationManager } from '../automation/AutomationManager';
-import { UserData } from '../types/types';
+import { AutomationManager } from '../automation/AutomationManager';
+
+const automationManager = AutomationManager.getInstance(config.openaiApiKey);
 
 export const data = new SlashCommandBuilder()
     .setName('balance')

@@ -1,7 +1,7 @@
 import { GuildMember, TextChannel, Message } from 'discord.js';
 import { TrollAction } from '../types/AutomationType';
 import { UserContext } from '../AutomationManager';
-import { automationManager } from '../AutomationManager';
+import { AutomationManager } from '../AutomationManager';
 import OpenAI from 'openai';
 import { config } from '../../config';
 import { trollActions } from './index';
@@ -86,8 +86,8 @@ export const discussion: TrollAction = {
         const now = Date.now();
         const twoMinutesAgo = now - 120000; // 2 minutes
         
-        // Vérifier si l'utilisateur a 100% de chance de troll
-        const trollChance = automationManager.getTrollChance(member);
+        // Vérifier si l'utilisateur a 100% de chance de atroll
+        const trollChance = AutomationManager.getInstance(config.openaiApiKey).getBaseChance(member);
         if (trollChance < 1) return false;
 
         // Vérifier les messages récents (5 messages dans les 2 dernières minutes)

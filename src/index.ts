@@ -30,7 +30,6 @@ import { trollStateManager } from './automation/TrollState';
 import { AutomationManager } from './automation/AutomationManager';
 import { forcedNicknameManager } from './automation/ForcedNicknameManager';
 import { channelNameManager } from './automation/ChannelNameManager';
-import { initAutomationManager } from './automation/AutomationManager';
 
 const client = new Client({
     intents: [
@@ -51,7 +50,7 @@ const commands = new Collection<string, { execute: (interaction: ChatInputComman
     commands.set(command.data.name, command);
 });
 
-const automationManager = new AutomationManager(config.openaiApiKey);
+const automationManager = AutomationManager.getInstance(config.openaiApiKey);
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
@@ -109,7 +108,11 @@ client.once(Events.ClientReady, async () => {
     channelNameManager.setClient(client);
     console.log('Channel name manager initialized successfully');
 
-    initAutomationManager(config.openaiApiKey);
+    // Initialize AutomationManager
+    const automationManager = AutomationManager.getInstance(config.openaiApiKey);
+    automationManager.setClient(client);
+    await automationManager.init();
+    console.log('Automation manager initialized successfully');
 });
 
 client.on(Events.InteractionCreate, async interaction => {

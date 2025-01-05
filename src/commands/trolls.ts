@@ -2,12 +2,13 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, 
 import { AutomationManager } from '../automation/AutomationManager';
 import { trollActions } from '../automation/actions';
 import { trollStateManager } from '../automation/TrollState';
-import { config } from '../config';
 import { TrollAction } from '../automation/types/AutomationType';
 import { trollConfig } from '../automation/config/troll.config';
+import { config } from '../config';
+
+const automationManager = AutomationManager.getInstance(config.openaiApiKey);
 
 const ALLOWED_USER_ID = '295515087731556362';
-const automationManager = new AutomationManager(config.openaiApiKey);
 
 export const data = new SlashCommandBuilder()
     .setName('troll')

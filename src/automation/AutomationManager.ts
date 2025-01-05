@@ -30,8 +30,9 @@ export class AutomationManager {
     private client: Client | null = null;
     private lastActionUses: Map<string, number> = new Map();
     private nextCheckTime: number;
+    private static instance: AutomationManager | null = null;
 
-    constructor(apiKey: string) {
+    private constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
         this.db = new TrollDatabase();
         this.nextCheckTime = Date.now() + trollConfig.global.checkInterval;
@@ -39,6 +40,13 @@ export class AutomationManager {
             this.checkForTrollOpportunities();
             this.nextCheckTime = Date.now() + trollConfig.global.checkInterval;
         }, trollConfig.global.checkInterval);
+    }
+
+    public static getInstance(apiKey: string): AutomationManager {
+        if (!AutomationManager.instance) {
+            AutomationManager.instance = new AutomationManager(apiKey);
+        }
+        return AutomationManager.instance;
     }
 
     public async init() {
@@ -337,10 +345,4 @@ export class AutomationManager {
         context.baseChance = Math.min(Math.max(chance, trollConfig.global.minBaseChance), trollConfig.global.maxBaseChance);
         this.db.setUser(member.id, context);
     }
-}
-
-export let automationManager: AutomationManager;
-
-export function initAutomationManager(apiKey: string) {
-    automationManager = new AutomationManager(apiKey);
 } 

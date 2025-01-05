@@ -54,6 +54,10 @@ export class AutomationManager {
         // Charger les données des utilisateurs depuis la DB
         const users = await this.db.getAllUsers();
         for (const [userId, context] of users) {
+            // Ensure lastActivity is a Date object
+            if (!(context.lastActivity instanceof Date)) {
+                context.lastActivity = new Date(context.lastActivity);
+            }
             this.userContexts.set(userId, context);
         }
     }
@@ -128,7 +132,12 @@ export class AutomationManager {
             this.userContexts.set(userId, context);
             this.db.setUser(userId, context);
         }
-        return this.userContexts.get(userId)!;
+        const context = this.userContexts.get(userId)!;
+        // Ensure lastActivity is always a Date object
+        if (!(context.lastActivity instanceof Date)) {
+            context.lastActivity = new Date(context.lastActivity);
+        }
+        return context;
     }
 
     public getTrollChance(member: GuildMember): number {

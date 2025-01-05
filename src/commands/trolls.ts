@@ -23,6 +23,10 @@ export const data = new SlashCommandBuilder()
             .setDescription('Désactiver le mode troll'))
     .addSubcommand(subcommand =>
         subcommand
+            .setName('reset')
+            .setDescription('Réinitialiser toutes les stats de troll'))
+    .addSubcommand(subcommand =>
+        subcommand
             .setName('status')
             .setDescription('Voir le statut du mode troll'))
     .addSubcommand(subcommand =>
@@ -130,6 +134,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 .setDescription('Le mode troll a été désactivé !')
                 .setTimestamp();
             await interaction.reply({ embeds: [disableEmbed], ephemeral: true });
+            break;
+
+        case 'reset':
+            await automationManager.resetAllTrollChances();
+            const resetEmbed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('🔄 Reset des Stats')
+                .setDescription('Toutes les stats de troll ont été réinitialisées :\n- Chances de base à 0%\n- Compteurs de messages à 0\n- Temps vocal à 0\n- Streaks d\'activité à 0\n- Historique des trolls effacé')
+                .setTimestamp();
+            await interaction.reply({ embeds: [resetEmbed], ephemeral: true });
             break;
 
         case 'status':

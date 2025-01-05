@@ -29,12 +29,12 @@ export class Connect4Manager {
 
         // Vérifier si le joueur a assez d'argent
         const player1Data = await db.getUser(player1.id);
-        if (!player1Data || player1Data.balance < wager) {
-            throw new Error(`${player1.username} n'a pas assez de LuluxCoins pour jouer !`);
+        if (!player1Data || player1Data.zermikoins < wager) {
+            throw new Error(`${player1.username} n'a pas assez de ZermiKoins pour jouer !`);
         }
         
         // Déduire la mise du joueur 1
-        await db.updateBalance(player1.id, wager, 'remove');
+        await db.updateBalance(player1.id, wager, 'remove', 'zermikoins');
 
         const id = uuidv4();
 
@@ -97,7 +97,7 @@ export class Connect4Manager {
             const gameToDelete = this.games.get(id);
             if (gameToDelete && gameToDelete.status === GameStatus.WAITING_FOR_PLAYER) {
                 // Rembourser le joueur 1
-                await db.updateBalance(player1.id, wager, 'add');
+                await db.updateBalance(player1.id, wager, 'add', 'zermikoins');
                 
                 // Supprimer le jeu
                 this.games.delete(id);
@@ -552,7 +552,7 @@ export class Connect4Manager {
             if (action === 'accept') {
                 await this.handleAccept(game, interaction);
             } else if (action === 'decline') {
-                await this.handleDecline(game, interaction);
+                await this.handleDecline(gameId, interaction);
             } else {
                 const column = parseInt(action);
                 if (!isNaN(column)) {
@@ -613,41 +613,39 @@ export class Connect4Manager {
         });
     }
 
-    private async handleDecline(game: Connect4Game, interaction: ButtonInteraction): Promise<void> {
-        try {
-            // Rembourser le joueur 1
-            if (game.wager > 0) {
-                await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
-            }
+    async handleDecline(gameId: string, interaction: ButtonInteraction): Promise<void> {
+        const game = this.games.get(gameId);
+        if (!game || game.status !== GameStatus.WAITING_FOR_PLAYER) return;
 
-            // Supprimer la partie
-            this.games.delete(game.id);
-            activeGamesManager.removeGame(game.id);
-
-            // Supprimer le message original et envoyer le message de refus
-            const message = this.gameMessages.get(game.id);
-            if (message) {
-                // Envoyer un message temporaire
-                const declineMessage = await message.reply({
-                    content: `${interaction.user.username} a refusé la partie !`
-                });
-
-                await message.delete().catch(console.error);
-                this.gameMessages.delete(game.id);
-
-                // Supprimer le message de refus après 30 secondes
-                setTimeout(() => {
-                    declineMessage.delete().catch(console.error);
-                }, 30000);
-            }
-
-            // Répondre à l'interaction si elle n'a pas encore été traitée
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.deferUpdate().catch(() => {});
-            }
-        } catch (error) {
-            console.error('Erreur lors du refus de la partie:', error);
+        // Rembourser le joueur 1 si la partie est refusée
+        if (game.player1.user instanceof User) {
+            await db.updateBalance(game.player1.user.id, game.wager, 'add', 'zermikoins');
         }
+
+        // Supprimer le jeu
+        this.games.delete(gameId);
+        activeGamesManager.removeGame(gameId);
+
+        // Informer les joueurs
+        const embed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('❌ Partie refusée')
+            .setDescription(`${interaction.user} a refusé la partie.`);
+
+        await interaction.update({ 
+            content: `${game.player1.user} ${game.player2.user}`,
+            embeds: [embed],
+            components: [] 
+        });
+
+        // Supprimer le message après 10 secondes
+        setTimeout(() => {
+            const message = this.gameMessages.get(gameId);
+            if (message) {
+                message.delete().catch(console.error);
+                this.gameMessages.delete(gameId);
+            }
+        }, 10000);
     }
 }
 

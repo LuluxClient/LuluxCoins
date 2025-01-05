@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'disc
 import { BlackjackGame } from '../types/BlackjackTypes';
 import { GameStatus } from '../../common/types/GameTypes';
 import { config } from '../../../config';
+import { User } from 'discord.js';
 
 export class BlackjackUI {
     static createGameButtons(game: BlackjackGame): ActionRowBuilder<ButtonBuilder>[] {
@@ -66,11 +67,24 @@ export class BlackjackUI {
         return [row];
     }
 
-    static createGameEmbed(game: BlackjackGame): EmbedBuilder {
+    static createGameEmbed(game: BlackjackGame, playerData?: any): EmbedBuilder {
+        const playerBalance = playerData?.zermikoins ?? 0;
+
         const embed = new EmbedBuilder()
+            .setColor('#0099ff')
             .setTitle('🎰 Blackjack')
-            .setColor('#FFD700')
-            .setDescription('Battez le croupier en vous approchant le plus possible de 21 sans dépasser !');
+            .addFields([
+                {
+                    name: 'Joueur',
+                    value: `${game.player instanceof User ? `${game.player} (${playerBalance} ${config.zermikoinsEmoji})` : 'LuluxBot'}`,
+                    inline: false
+                },
+                {
+                    name: 'Mise',
+                    value: `${game.wager} ${config.zermikoinsEmoji}`,
+                    inline: true
+                },
+            ]);
 
         // Main du croupier
         let dealerHandStr = '';
@@ -120,24 +134,19 @@ export class BlackjackUI {
         // Ligne de séparation pour les infos
         embed.addFields({ 
             name: '┏━━━━━ 💰 Informations ━━━━━┓', 
-            value: `Mise: ${game.wager} ${config.luluxcoinsEmoji}`,
+            value: `Mise: ${game.wager} ${config.zermikoinsEmoji}`,
             inline: false 
         });
 
         // Afficher le résultat si la partie est terminée
         if (game.status === GameStatus.FINISHED) {
-            let resultStr = '';
-            if (game.winner === 'player') {
-                resultStr = `🎉 Vous avez gagné ${game.wager * 2} ${config.luluxcoinsEmoji} !`;
-            } else if (game.winner === 'dealer') {
-                resultStr = '💀 Le croupier gagne.';
-            } else {
-                resultStr = `🤝 Égalité ! Votre mise de ${game.wager} ${config.luluxcoinsEmoji} vous est rendue.`;
-            }
-            embed.addFields({ 
-                name: '┏━━━━━ 🏆 Résultat ━━━━━┓', 
-                value: resultStr, 
-                inline: false 
+            embed.addFields({
+                name: 'Résultat',
+                value: game.winner === 'player'
+                    ? `🏆 Vous avez gagné ! (+${game.wager * 2} ${config.zermikoinsEmoji})`
+                    : game.winner === null
+                        ? '🤝 Égalité !'
+                        : `❌ Vous avez perdu ! (-${game.wager} ${config.zermikoinsEmoji})`
             });
         }
 

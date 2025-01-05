@@ -28,12 +28,12 @@ export class TicTacToeManager {
 
         // Vérifier si le joueur a assez d'argent
         const player1Data = await db.getUser(player1.id);
-        if (!player1Data || player1Data.balance < wager) {
-            throw new Error(`${player1.username} n'a pas assez de LuluxCoins pour jouer !`);
+        if (!player1Data || player1Data.zermikoins < wager) {
+            throw new Error(`${player1.username} n'a pas assez de ZermiKoins pour jouer !`);
         }
         
         // Déduire la mise du joueur 1
-        await db.updateBalance(player1.id, wager, 'remove');
+        await db.updateBalance(player1.id, wager, 'remove', 'zermikoins');
 
         const id = uuidv4();
 
@@ -94,7 +94,7 @@ export class TicTacToeManager {
             const gameToDelete = this.games.get(id);
             if (gameToDelete && gameToDelete.status === GameStatus.WAITING_FOR_PLAYER) {
                 // Rembourser le joueur 1
-                await db.updateBalance(player1.id, wager, 'add');
+                await db.updateBalance(player1.id, wager, 'add', 'zermikoins');
                 
                 // Supprimer le jeu
                 this.games.delete(id);
@@ -513,7 +513,7 @@ export class TicTacToeManager {
             if (action === 'accept') {
                 await this.handleAccept(game, interaction);
             } else if (action === 'decline') {
-                await this.handleDecline(game, interaction);
+                await this.handleDecline(gameId, interaction);
             } else {
                 const position = parseInt(action);
                 if (!isNaN(position)) {
@@ -529,18 +529,19 @@ export class TicTacToeManager {
         // Vérifier si le joueur 2 a assez d'argent
         if (game.wager > 0) {
             const player2Data = await db.getUser(interaction.user.id);
-            if (!player2Data || player2Data.balance < game.wager) {
-                await interaction.reply({ 
-                    content: 'Vous n\'avez pas assez de LuluxCoins pour accepter cette partie !', 
-                    ephemeral: true 
+            if (!player2Data || player2Data.zermikoins < game.wager) {
+                await interaction.update({ 
+                    content: 'Vous n\'avez pas assez de ZermiKoins pour accepter cette partie !',
+                    embeds: [],
+                    components: []
                 });
                 // Rembourser le joueur 1
-                await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
+                await db.updateBalance((game.player1.user as User).id, game.wager, 'add', 'zermikoins');
                 this.games.delete(game.id);
                 return;
             }
             // Déduire la mise du joueur 2
-            await db.updateBalance(interaction.user.id, game.wager, 'remove');
+            await db.updateBalance(interaction.user.id, game.wager, 'remove', 'zermikoins');
         }
 
         // Démarrer la partie
@@ -554,30 +555,39 @@ export class TicTacToeManager {
         });
     }
 
-    private async handleDecline(game: TicTacToeGame, interaction: ButtonInteraction): Promise<void> {
-        // Rembourser le joueur 1
-        if (game.wager > 0) {
-            await db.updateBalance((game.player1.user as User).id, game.wager, 'add');
+    private async handleDecline(gameId: string, interaction: ButtonInteraction): Promise<void> {
+        const game = this.games.get(gameId);
+        if (!game || game.status !== GameStatus.WAITING_FOR_PLAYER) return;
+
+        // Rembourser le joueur 1 si la partie est refusée
+        if (game.player1.user instanceof User) {
+            await db.updateBalance(game.player1.user.id, game.wager, 'add', 'zermikoins');
         }
 
-        // Supprimer la partie
-        this.games.delete(game.id);
-        activeGamesManager.removeGame(game.id);
+        // Supprimer le jeu
+        this.games.delete(gameId);
+        activeGamesManager.removeGame(gameId);
+
+        // Informer les joueurs
+        const embed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('❌ Partie refusée')
+            .setDescription(`${interaction.user} a refusé la partie.`);
 
         await interaction.update({ 
-            content: `${interaction.user.username} a refusé la partie !`,
-            embeds: [],
-            components: []
+            content: `${game.player1.user} ${game.player2.user}`,
+            embeds: [embed],
+            components: [] 
         });
 
-        // Supprimer le message après 30 secondes
+        // Supprimer le message après 10 secondes
         setTimeout(() => {
-            const message = this.gameMessages.get(game.id);
+            const message = this.gameMessages.get(gameId);
             if (message) {
                 message.delete().catch(console.error);
-                this.gameMessages.delete(game.id);
+                this.gameMessages.delete(gameId);
             }
-        }, 30000);
+        }, 10000);
     }
 }
 

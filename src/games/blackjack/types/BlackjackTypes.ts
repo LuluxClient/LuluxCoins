@@ -8,12 +8,58 @@ export interface Card {
     toString(): string;
 }
 
-export interface Hand {
-    cards: Card[];
-    value: number;
-    isSoft: boolean;
-    isNaturalBlackjack?: boolean;
+export class Hand {
+    cards: Card[] = [];
+    value: number = 0;
+    isSoft: boolean = false;
+    isNaturalBlackjack?: boolean = false;
     wager?: number;
+
+    constructor() {
+        this.cards = [];
+        this.value = 0;
+        this.isSoft = false;
+        this.isNaturalBlackjack = false;
+    }
+
+    addCard(card: Card): void {
+        this.cards.push(card);
+        this.updateValue();
+    }
+
+    private updateValue(): void {
+        let value = 0;
+        let aces = 0;
+        this.isSoft = false;
+
+        // Count non-ace cards first
+        for (const card of this.cards) {
+            if (card.value === 'A') {
+                aces++;
+            } else {
+                value += card.numericValue;
+            }
+        }
+
+        // Add aces
+        for (let i = 0; i < aces; i++) {
+            if (value + 11 <= 21) {
+                value += 11;
+                this.isSoft = true;
+            } else {
+                value += 1;
+            }
+        }
+
+        this.value = value;
+
+        // Check for natural blackjack
+        if (this.cards.length === 2 && this.value === 21) {
+            const hasAce = this.cards.some(card => card.value === 'A');
+            const hasTenCard = this.cards.some(card => card.numericValue === 10);
+            this.isNaturalBlackjack = hasAce && hasTenCard;
+        }
+    }
 }
 
 export interface BlackjackPlayer {

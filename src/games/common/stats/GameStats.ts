@@ -89,22 +89,22 @@ export class GameStats {
             .addFields(
                 { 
                     name: '🎮 Global',
-                    value: `Parties jouées: ${stats.global.gamesPlayed}\nVictoires: ${stats.global.gamesWon}\nDéfaites: ${stats.global.gamesLost}\nÉgalités: ${stats.global.gamesTied}\nMise totale: ${stats.global.totalWager} ${config.luluxcoinsEmoji}\nGains totaux: ${stats.global.totalEarned} ${config.luluxcoinsEmoji}`,
+                    value: `Parties jouées: ${stats.global.gamesPlayed}\nVictoires: ${stats.global.gamesWon}\nDéfaites: ${stats.global.gamesLost}\nÉgalités: ${stats.global.gamesTied}\nMise totale: ${stats.global.totalWager} ${config.zermikoinsEmoji}\nGains totaux: ${stats.global.totalEarned} ${config.zermikoinsEmoji}`,
                     inline: false
                 },
                 {
                     name: '❌ Morpion',
-                    value: `Parties jouées: ${stats.tictactoe.gamesPlayed}\nVictoires: ${stats.tictactoe.gamesWon}\nDéfaites: ${stats.tictactoe.gamesLost}\nÉgalités: ${stats.tictactoe.gamesTied}\nMise totale: ${stats.tictactoe.totalWager} ${config.luluxcoinsEmoji}\nGains totaux: ${stats.tictactoe.totalEarned} ${config.luluxcoinsEmoji}`,
+                    value: `Parties jouées: ${stats.tictactoe.gamesPlayed}\nVictoires: ${stats.tictactoe.gamesWon}\nDéfaites: ${stats.tictactoe.gamesLost}\nÉgalités: ${stats.tictactoe.gamesTied}\nMise totale: ${stats.tictactoe.totalWager} ${config.zermikoinsEmoji}\nGains totaux: ${stats.tictactoe.totalEarned} ${config.zermikoinsEmoji}`,
                     inline: true
                 },
                 {
                     name: '🔴 Puissance 4',
-                    value: `Parties jouées: ${stats.connect4.gamesPlayed}\nVictoires: ${stats.connect4.gamesWon}\nDéfaites: ${stats.connect4.gamesLost}\nÉgalités: ${stats.connect4.gamesTied}\nMise totale: ${stats.connect4.totalWager} ${config.luluxcoinsEmoji}\nGains totaux: ${stats.connect4.totalEarned} ${config.luluxcoinsEmoji}`,
+                    value: `Parties jouées: ${stats.connect4.gamesPlayed}\nVictoires: ${stats.connect4.gamesWon}\nDéfaites: ${stats.connect4.gamesLost}\nÉgalités: ${stats.connect4.gamesTied}\nMise totale: ${stats.connect4.totalWager} ${config.zermikoinsEmoji}\nGains totaux: ${stats.connect4.totalEarned} ${config.zermikoinsEmoji}`,
                     inline: true
                 },
                 {
                     name: '🎲 Blackjack',
-                    value: `Parties jouées: ${stats.blackjack.gamesPlayed}\nVictoires: ${stats.blackjack.gamesWon}\nDéfaites: ${stats.blackjack.gamesLost}\nÉgalités: ${stats.blackjack.gamesTied}\nMise totale: ${stats.blackjack.totalWager} ${config.luluxcoinsEmoji}\nGains totaux: ${stats.blackjack.totalEarned} ${config.luluxcoinsEmoji}`,
+                    value: `Parties jouées: ${stats.blackjack.gamesPlayed}\nVictoires: ${stats.blackjack.gamesWon}\nDéfaites: ${stats.blackjack.gamesLost}\nÉgalités: ${stats.blackjack.gamesTied}\nMise totale: ${stats.blackjack.totalWager} ${config.zermikoinsEmoji}\nGains totaux: ${stats.blackjack.totalEarned} ${config.zermikoinsEmoji}`,
                     inline: true
                 }
             );

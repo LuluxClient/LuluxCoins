@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction } from 'discord.js';
 import * as balance from '../commands/balance';
 import * as leaderboard from '../commands/leaderboard';
-import * as luluxcoins from '../commands/luluxcoins';
+import * as economy from '../commands/economy';
 import * as shop from '../commands/shop';
 import * as history from '../commands/history';
 import * as initusers from '../commands/initusers';
@@ -17,7 +17,7 @@ class CommandHandler {
 
     constructor() {
         [
-            balance, leaderboard, luluxcoins, shop, history, initusers, 
+            balance, leaderboard, economy, shop, history, initusers, 
             vendesleep, roux, music, triggerwords, game, gamestats
         ].forEach(command => {
             this.commands.set(command.data.name, command);

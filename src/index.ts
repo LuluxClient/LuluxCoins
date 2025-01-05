@@ -7,7 +7,7 @@ import { harassmentManager } from './managers/harassmentManager';
 import { politicsManager } from './managers/politicsManager';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
-import * as luluxcoins from './commands/luluxcoins';
+import * as economy from './commands/economy';
 import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
@@ -44,7 +44,7 @@ const client = new Client({
 
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
 [
-    balance, leaderboard, luluxcoins, shop, history, initusers, 
+    balance, leaderboard, economy, shop, history, initusers, 
     vendesleep, roux, music, triggerwords, game, gamestats, trolls
 ].forEach(command => {
     commands.set(command.data.name, command);

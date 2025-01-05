@@ -5,6 +5,7 @@ export const config = {
     clientId: process.env.CLIENT_ID!,
     staffRoleIds: [process.env.STAFF_ROLE_ID!],
     luluxcoinsEmoji: `<:luluxcoins:${process.env.LULUXCOINS_EMOJI_ID}>`,
+    zermikoinsEmoji: `<:zermikoins:${process.env.ZERMIKOINS_EMOJI_ID}>`,
     ownerID: '295515087731556362',
     openaiApiKey: process.env.OPENAI_API_KEY!,
     shopItems: [

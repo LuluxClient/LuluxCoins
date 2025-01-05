@@ -2,7 +2,7 @@ import { REST, Routes } from 'discord.js';
 import { config } from './config';
 import * as balance from './commands/balance';
 import * as leaderboard from './commands/leaderboard';
-import * as luluxcoins from './commands/luluxcoins';
+import * as economy from './commands/economy';
 import * as shop from './commands/shop';
 import * as history from './commands/history';
 import * as initusers from './commands/initusers';
@@ -17,7 +17,7 @@ import * as trolls from './commands/trolls';
 const commands = [
     balance.data,
     leaderboard.data,
-    luluxcoins.data,
+    economy.data,
     shop.data,
     history.data,
     initusers.data,

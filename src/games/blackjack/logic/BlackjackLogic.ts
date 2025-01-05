@@ -23,11 +23,7 @@ export class BlackjackLogic {
     }
 
     static createEmptyHand(): Hand {
-        return {
-            cards: [],
-            value: 0,
-            isSoft: false
-        };
+        return new Hand();
     }
 
     static addCardToHand(hand: Hand, card: Card): void {

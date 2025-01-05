@@ -1,44 +1,78 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
 import { db } from '../database/databaseManager';
 import { config } from '../config';
 
 export const data = new SlashCommandBuilder()
     .setName('initusers')
-    .setDescription('Initialize all server members in the database (Staff only)');
+    .setDescription('Initialiser les utilisateurs avec un montant')
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('Le montant à donner à chaque utilisateur')
+            .setRequired(true))
+    .addStringOption(option =>
+        option
+            .setName('currency')
+            .setDescription('Type de monnaie à initialiser')
+            .setRequired(true)
+            .addChoices(
+                { name: 'LuluxCoins', value: 'luluxcoins' },
+                { name: 'ZermiKoins', value: 'zermikoins' },
+                { name: 'Les deux', value: 'all' }
+            ));
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    const isOwner = interaction.user.id === config.ownerID;
-
-    if (!isOwner) {
-        await interaction.reply({
-            content: 'Nique ta mère',
-            ephemeral: true
-        });
+    const member = interaction.member as GuildMember;
+    if (!member || !config.staffRoleIds.some(roleId => member.roles.cache.has(roleId))) {
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('❌ Erreur')
+            .setDescription('Tu n\'as pas la permission d\'utiliser cette commande.')
+            .setTimestamp();
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    const amount = interaction.options.getInteger('amount', true);
+    const currency = interaction.options.getString('currency', true);
 
     try {
         const guild = interaction.guild;
         if (!guild) {
-            await interaction.editReply('Could not find guild!');
-            return;
+            throw new Error('Guild not found');
         }
 
         const members = await guild.members.fetch();
         let initializedCount = 0;
 
-        for (const [_, member] of members) {
+        for (const [, member] of members) {
             if (!member.user.bot) {
-                await db.registerUser(member.id, member.user.username);
+                if (currency === 'all') {
+                    await db.initializeUser(member.id, member.user.username, amount, amount);
+                } else {
+                    await db.initializeUser(member.id, member.user.username, 
+                        currency === 'luluxcoins' ? amount : 0,
+                        currency === 'zermikoins' ? amount : 0
+                    );
+                }
                 initializedCount++;
             }
         }
 
-        await interaction.editReply(`Successfully initialized ${initializedCount} users in the database!`);
+        const successEmbed = new EmbedBuilder()
+            .setColor('#00FF00')
+            .setTitle('✅ Succès')
+            .setDescription(`${initializedCount} utilisateurs ont été initialisés avec ${amount} ${currency === 'luluxcoins' ? config.luluxcoinsEmoji : currency === 'zermikoins' ? config.zermikoinsEmoji : 'de chaque monnaie'}.`)
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [successEmbed] });
     } catch (error) {
-        console.error('Error initializing users:', error);
-        await interaction.editReply('An error occurred while initializing users.');
+        console.error('Error in initusers command:', error);
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('❌ Erreur')
+            .setDescription('Une erreur est survenue lors de l\'initialisation des utilisateurs.')
+            .setTimestamp();
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 } 

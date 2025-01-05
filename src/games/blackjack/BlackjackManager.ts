@@ -36,7 +36,7 @@ export class BlackjackManager {
         if (wager > 0) {
             const userData = await db.getUser(player.id);
             if (!userData || userData.balance < wager) {
-                throw new Error(`Vous n'avez pas assez de LuluxCoins ! (Solde: ${userData?.balance ?? 0} LC)`);
+                throw new Error(`Vous n'avez pas assez de ZermiKoins ! (Solde: ${userData?.balance ?? 0} ZK)`);
             }
             // Déduire la mise du joueur
             await db.updateBalance(player.id, wager, 'remove');
@@ -94,7 +94,7 @@ export class BlackjackManager {
             const balance = userData?.balance ?? 0;
 
             await message.edit({
-                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.luluxcoinsEmoji})`,
+                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.zermikoinsEmoji})`,
                 embeds: [BlackjackUI.createGameEmbed(game)],
                 components: BlackjackUI.createGameButtons(game)
             });
@@ -201,7 +201,7 @@ export class BlackjackManager {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
-                    content: 'Vous n\'avez pas assez de LuluxCoins pour doubler !'
+                    content: 'Vous n\'avez pas assez de ZermiKoins pour doubler !'
                 });
                 setTimeout(() => reply.delete().catch(console.error), 30000);
             }
@@ -247,7 +247,7 @@ export class BlackjackManager {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
-                    content: 'Vous n\'avez pas assez de LuluxCoins pour split !'
+                    content: 'Vous n\'avez pas assez de ZermiKoins pour split !'
                 });
                 setTimeout(() => reply.delete().catch(console.error), 30000);
             }
@@ -487,7 +487,7 @@ export class BlackjackManager {
 
             console.log('[UPDATE] Mise à jour du message');
             await message.edit({
-                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.luluxcoinsEmoji})`,
+                content: `<@${this.getUserId(game.player.user)}> (Solde: ${balance} ${config.zermikoinsEmoji})`,
                 embeds: [embed],
                 components: buttons
             });

@@ -16,8 +16,8 @@ export class Connect4UI {
             player2Id !== 'bot' ? db.getUser(player2Id) : null
         ]);
 
-        const player1Balance = player1Data?.balance ?? 0;
-        const player2Balance = player2Data?.balance ?? 0;
+        const player1Balance = player1Data?.zermikoins ?? 0;
+        const player2Balance = player2Data?.zermikoins ?? 0;
 
         return {
             title: '🎮 Puissance 4',
@@ -26,19 +26,19 @@ export class Connect4UI {
             fields: [
                 { 
                     name: 'Joueurs', 
-                    value: `${game.player1.user instanceof User ? `${game.player1.user} (${player1Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player1.symbol}) VS ${game.player2.user instanceof User ? `${game.player2.user} (${player2Balance} ${config.luluxcoinsEmoji})` : 'LuluxBot'} (${game.player2.symbol})`,
+                    value: `${game.player1.user instanceof User ? `${game.player1.user} (${player1Balance} ${config.zermikoinsEmoji})` : 'LuluxBot'} (${game.player1.symbol}) VS ${game.player2.user instanceof User ? `${game.player2.user} (${player2Balance} ${config.zermikoinsEmoji})` : 'LuluxBot'} (${game.player2.symbol})`,
                     inline: false 
                 },
                 { 
                     name: 'Mise', 
-                    value: `${game.wager} ${config.luluxcoinsEmoji}`,
+                    value: `${game.wager} ${config.zermikoinsEmoji}`,
                     inline: true 
                 },
                 { 
                     name: 'Tour actuel', 
                     value: game.status === GameStatus.FINISHED 
                         ? (game.winner 
-                            ? `🏆 ${game.winner.user instanceof User ? game.winner.user : 'LuluxBot'} a gagné ${game.wager > 0 ? `(+${game.wager * 2} ${config.luluxcoinsEmoji})` : ''}!` 
+                            ? `🏆 ${game.winner.user instanceof User ? game.winner.user : 'LuluxBot'} a gagné ${game.wager > 0 ? `(+${game.wager * 2} ${config.zermikoinsEmoji})` : ''}!` 
                             : '🤝 Match nul !')
                         : game.currentTurn === 'bot' 
                             ? 'LuluxBot'

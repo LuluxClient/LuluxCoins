@@ -1,6 +1,7 @@
 import { EmbedBuilder, ColorResolvable } from 'discord.js';
-import { UserData, Transaction, ShopItem } from '../types/types';
+import { Transaction, ShopItem } from '../types/types';
 import { config } from '../config';
+import { UserData } from '../database/databaseManager';
 
 export class EmbedCreator {
     static createBalanceEmbed(user: UserData) {

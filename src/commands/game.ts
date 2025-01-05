@@ -55,7 +55,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 embed = new EmbedBuilder()
                     .setColor(0xFFA500)
                     .setTitle('🎮 Défi Morpion')
-                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Morpion${wager > 0 ? ` pour ${wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Morpion${wager > 0 ? ` pour ${wager} ${config.zermikoinsEmoji}` : ''} !`)
                     .addFields({ 
                         name: 'Temps restant', 
                         value: '60 secondes' 
@@ -68,7 +68,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     components: buttons,
                     fetchReply: true 
                 });
-                ticTacToeManager.addGameMessage(game.id, message);
+                await ticTacToeManager.addGameMessage(game.id, message);
             } else {
                 embed = await TicTacToeUI.createGameEmbed(game);
                 buttons = ticTacToeManager.createGameButtons(game);
@@ -77,7 +77,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     components: buttons,
                     fetchReply: true 
                 });
-                ticTacToeManager.addGameMessage(game.id, message);
+                await ticTacToeManager.addGameMessage(game.id, message);
             }
         } else if (gameType === 'connect4') {
             game = await connect4Manager.createGame(interaction.user, opponent || 'bot', wager);
@@ -85,7 +85,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 embed = new EmbedBuilder()
                     .setColor(0xFFA500)
                     .setTitle('🎮 Défi Puissance 4')
-                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Puissance 4${wager > 0 ? ` pour ${wager} ${config.luluxcoinsEmoji}` : ''} !`)
+                    .setDescription(`${interaction.user} défie ${opponent} en 1v1 en Puissance 4${wager > 0 ? ` pour ${wager} ${config.zermikoinsEmoji}` : ''} !`)
                     .addFields({ 
                         name: 'Temps restant', 
                         value: '60 secondes' 
@@ -98,7 +98,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     components: buttons,
                     fetchReply: true 
                 });
-                connect4Manager.addGameMessage(game.id, message);
+                await connect4Manager.addGameMessage(game.id, message);
             } else {
                 embed = await Connect4UI.createGameEmbed(game);
                 buttons = connect4Manager.createGameButtons(game);
@@ -107,7 +107,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     components: buttons,
                     fetchReply: true 
                 });
-                connect4Manager.addGameMessage(game.id, message);
+                await connect4Manager.addGameMessage(game.id, message);
             }
         } else if (gameType === 'blackjack') {
             game = await blackjackManager.createGame(interaction.user, wager);
@@ -118,15 +118,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 components: buttons,
                 fetchReply: true 
             });
-            blackjackManager.addGameMessage(game.id, message);
+            await blackjackManager.addGameMessage(game.id, message);
         } else {
-            throw new Error('Type de jeu non valide');
+            await interaction.reply({ 
+                content: 'Type de jeu non valide', 
+                ephemeral: true 
+            });
+            return;
         }
 
     } catch (error: any) {
-        await interaction.reply({ 
-            content: error.message, 
-            ephemeral: true 
-        });
+        if (!interaction.replied) {
+            await interaction.reply({ 
+                content: error.message, 
+                ephemeral: true 
+            });
+        }
     }
 } 

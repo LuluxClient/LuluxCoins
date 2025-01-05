@@ -28,7 +28,10 @@ class HarassmentManager {
                 if (elapsedTime < this.MAX_DURATION) {
                     // Redémarrer le harcèlement avec le temps restant
                     const remainingTime = this.MAX_DURATION - elapsedTime;
-                    this.startWithTimeout(this.state.targetId!, this.state.message!, remainingTime);
+                    // Attendre un peu avant de redémarrer pour éviter le spam au redémarrage
+                    setTimeout(() => {
+                        this.startWithTimeout(this.state.targetId!, this.state.message!, remainingTime);
+                    }, 5000);
                 } else {
                     // Si plus de 24h sont passées, arrêter le harcèlement
                     await this.stop();
@@ -71,12 +74,25 @@ class HarassmentManager {
     }
 
     private startWithTimeout(targetId: string, message: string, duration: number) {
+        // Nettoyer l'ancien intervalle si existant
+        if (this.state.intervalId) {
+            clearInterval(this.state.intervalId);
+        }
+
+        const startTime = Date.now();
         this.state = {
             active: true,
             targetId,
             message,
-            startTime: Date.now(),
-            intervalId: setInterval(() => this.sendMessage(), 3600000)
+            startTime,
+            intervalId: setInterval(() => {
+                // Vérifier si on a dépassé la durée maximale
+                if (Date.now() - startTime >= duration) {
+                    this.stop();
+                    return;
+                }
+                this.sendMessage();
+            }, 3600000)
         };
 
         // Programmer l'arrêt automatique

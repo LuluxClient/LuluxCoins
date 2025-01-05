@@ -31,6 +31,7 @@ export class AutomationManager {
     private lastActionUses: Map<string, number> = new Map();
     private nextCheckTime: number;
     private static instance: AutomationManager | null = null;
+    private lastWeeklyReset: number = 0;
 
     private constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
@@ -452,8 +453,19 @@ export class AutomationManager {
 
     private async checkForWeeklyReset(): Promise<void> {
         const now = new Date();
-        if (now.getDay() === 0 && now.getHours() === 23 && now.getMinutes() === 59) {
+        const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
+        const lastResetWeek = Math.floor(this.lastWeeklyReset / (7 * 24 * 60 * 60 * 1000));
+
+        // Si on est dimanche 23h59 et qu'on n'a pas encore fait le reset cette semaine
+        if (now.getDay() === 0 && now.getHours() === 23 && now.getMinutes() === 59 && currentWeek > lastResetWeek) {
+            // Vérifier qu'on n'a pas déjà fait un reset dans la dernière heure
+            if (now.getTime() - this.lastWeeklyReset < 3600000) {
+                return;
+            }
+            
             await this.resetAllTrollChances();
+            this.lastWeeklyReset = now.getTime();
+            console.log(`Reset hebdomadaire effectué le ${now.toLocaleString()}`);
         }
     }
 

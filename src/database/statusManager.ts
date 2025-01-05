@@ -219,8 +219,11 @@ export class StatusManager {
             };
     
             if (oldStats.weeklyOnline === 0 && oldStats.weeklyOffline === 0) {
+                user.weeklyStats.lastReset = now;
+                await this.save();
                 return;
             }
+
             const timeDiff = Math.floor((now - user.lastStatusChange) / 1000);
             if (user.currentStatus === 'online') {
                 user.weeklyStats.online += timeDiff;

@@ -9,6 +9,11 @@ interface UserContext {
     voiceTime: number;
     messageCount: number;
     lastActivity: Date;
+    lastTrollAttempt?: {
+        timestamp: number;
+        chance: number;
+        success: boolean;
+    };
 }
 
 export class AutomationManager {
@@ -49,19 +54,40 @@ export class AutomationManager {
     public getDebugInfo(): string {
         const now = Date.now();
         let debug = '';
-        
-        for (const [userId, context] of this.userContexts.entries()) {
-            const timeSinceActivity = now - context.lastActivity.getTime();
-            const minutesSinceActivity = Math.floor(timeSinceActivity / 60000);
+        const guild = this.client?.guilds.cache.first();
+        if (!guild) return 'Aucun serveur trouvé';
+
+        // Trier les utilisateurs par chance de troll
+        const userChances = Array.from(this.userContexts.entries())
+            .map(([userId, context]) => {
+                const member = guild.members.cache.get(userId);
+                if (!member) return null;
+                const chance = this.getTrollChance(member);
+                return { userId, context, chance };
+            })
+            .filter(entry => entry !== null && entry.chance > 0.01) // Filtrer les chances > 1%
+            .sort((a, b) => b!.chance - a!.chance);
+
+        for (const entry of userChances) {
+            if (!entry) continue;
+            const { userId, context, chance } = entry;
+            const minutesSinceActivity = Math.floor((now - context.lastActivity.getTime()) / 60000);
             
-            debug += `<@${userId}>:\n`;
+            debug += `<@${userId}> (${Math.floor(chance * 100)}% de chance):\n`;
             debug += `- Dernière activité: il y a ${minutesSinceActivity}min\n`;
             debug += `- Messages: ${context.messageCount}\n`;
             debug += `- Temps en vocal: ${Math.floor(context.voiceTime/60000)}min\n`;
-            debug += `- Dernier troll: ${context.lastTrollTime ? `il y a ${Math.floor((now - context.lastTrollTime)/60000)}min` : 'jamais'}\n\n`;
+            debug += `- Dernier troll: ${context.lastTrollTime ? `il y a ${Math.floor((now - context.lastTrollTime)/60000)}min` : 'jamais'}\n`;
+            
+            if (context.lastTrollAttempt) {
+                const timeSinceAttempt = Math.floor((now - context.lastTrollAttempt.timestamp) / 60000);
+                debug += `- Dernière tentative: il y a ${timeSinceAttempt}min (${Math.floor(context.lastTrollAttempt.chance * 100)}% - ${context.lastTrollAttempt.success ? '✅' : '❌'})\n`;
+            }
+            
+            debug += '\n';
         }
         
-        return debug || 'Aucune activité enregistrée';
+        return debug || 'Aucun utilisateur éligible au troll';
     }
 
     public setClient(client: Client) {
@@ -81,48 +107,53 @@ export class AutomationManager {
         return this.userContexts.get(userId)!;
     }
 
-    private async shouldTrollUser(member: GuildMember): Promise<boolean> {
+    public getTrollChance(member: GuildMember): number {
         const context = this.getOrCreateUserContext(member.id);
         const now = Date.now();
 
-        // Vérifier le cooldown global
+        // Si cooldown actif, retourne 0%
         if (now - context.lastTrollTime < this.GLOBAL_COOLDOWN) {
-            console.log(`Cooldown actif pour ${member.displayName} (${Math.floor((this.GLOBAL_COOLDOWN - (now - context.lastTrollTime)) / 60000)} minutes restantes)`);
-            return false;
+            return 0;
         }
 
-        // Vérifier si l'utilisateur est actif
-        const isActive = (now - context.lastActivity.getTime()) < 300000; // 5 minutes
-        if (!isActive) {
-            console.log(`${member.displayName} n'est pas actif`);
-            return false;
+        // Si inactif depuis 5 minutes, retourne 0%
+        if (now - context.lastActivity.getTime() >= 300000) {
+            return 0;
         }
 
-        // Critères pour augmenter les chances de troll
         let trollChance = this.TROLL_CHANCE;
 
-        // Augmenter les chances si en vocal
+        // Bonus vocal
         if (member.voice.channel) {
             trollChance += 0.2;
-            console.log(`${member.displayName} est en vocal (+20% de chances)`);
         }
 
-        // Augmenter les chances si beaucoup de messages récents
+        // Bonus messages
         if (context.messageCount >= this.MIN_MESSAGES) {
             trollChance += 0.1;
-            console.log(`${member.displayName} est actif dans le chat (+10% de chances)`);
         }
 
-        // Augmenter les chances si longtemps en vocal
+        // Bonus temps vocal
         if (context.voiceTime >= this.MIN_VOICE_TIME) {
             trollChance += 0.1;
-            console.log(`${member.displayName} est en vocal depuis longtemps (+10% de chances)`);
         }
 
-        // Décision finale avec un élément aléatoire
+        return trollChance;
+    }
+
+    private async shouldTrollUser(member: GuildMember): Promise<boolean> {
+        const trollChance = this.getTrollChance(member);
+        const context = this.getOrCreateUserContext(member.id);
         const shouldTroll = Math.random() < trollChance;
+
+        // Enregistrer la tentative
+        context.lastTrollAttempt = {
+            timestamp: Date.now(),
+            chance: trollChance,
+            success: shouldTroll
+        };
+
         console.log(`Chance de troll pour ${member.displayName}: ${Math.floor(trollChance * 100)}% - Résultat: ${shouldTroll ? 'OUI' : 'NON'}`);
-        
         return shouldTroll;
     }
 
@@ -185,16 +216,32 @@ export class AutomationManager {
     }
 
     private async checkForTrollOpportunities(): Promise<void> {
+        const guild = await this.getGuild();
+        if (!guild) return;
+
         // Mettre à jour le temps en vocal pour tous les utilisateurs
         for (const [userId, context] of this.userContexts.entries()) {
-            const guild = await this.getGuild();
-            if (!guild) continue;
-
             try {
                 const member = await guild.members.fetch(userId);
                 if (member.voice.channel) {
-                    context.voiceTime += 60000; // +1 minute
+                    context.voiceTime += this.CHECK_INTERVAL; // +5 minutes
                     context.lastActivity = new Date();
+
+                    // Vérifier si on doit troller l'utilisateur
+                    if (await this.shouldTrollUser(member)) {
+                        const actionName = await this.selectAction(member);
+                        if (actionName) {
+                            const action = trollActions.find((a: TrollAction) => a.name === actionName);
+                            if (action) {
+                                console.log(`Exécution de l'action ${actionName} sur ${member.displayName} (check vocal)`);
+                                await action.execute(member);
+                                
+                                // Mettre à jour le contexte
+                                context.lastTrollTime = Date.now();
+                                context.messageCount = 0;
+                            }
+                        }
+                    }
                 } else {
                     context.voiceTime = 0; // Reset si pas en vocal
                 }

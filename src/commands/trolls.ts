@@ -131,7 +131,34 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                         inline: false
                     },
                     {
-                        name: '🎯 Actions Disponibles',
+                        name: '👥 Utilisateurs Éligibles',
+                        value: (() => {
+                            const guild = interaction.guild;
+                            if (!guild) return 'Aucun serveur trouvé';
+
+                            const eligibleUsers = Array.from(guild.members.cache.values())
+                                .map(member => ({
+                                    member,
+                                    chance: automationManager.getTrollChance(member)
+                                }))
+                                .filter(entry => entry.chance > 0.01)
+                                .sort((a, b) => b.chance - a.chance);
+
+                            if (eligibleUsers.length === 0) return 'Aucun utilisateur éligible actuellement';
+
+                            return eligibleUsers
+                                .map(entry => `${entry.member.displayName}: ${Math.floor(entry.chance * 100)}%`)
+                                .join('\n');
+                        })(),
+                        inline: false
+                    },
+                    {
+                        name: '⏱️ Intervalles de Vérification',
+                        value: `- Messages: Instantané\n- Vocal: Toutes les ${Math.floor(automationManager.CHECK_INTERVAL/60000)} minutes\n- Inactivité: Après 5 minutes sans activité\n- Cooldown global: ${Math.floor(automationManager.GLOBAL_COOLDOWN/60000)} minutes`,
+                        inline: false
+                    },
+                    {
+                        name: '🔍 Actions Disponibles',
                         value: trollActions.map((a: TrollAction) => {
                             const lastUse = automationManager.getLastActionUse(a.name);
                             const cooldownLeft = lastUse ? Math.max(0, (lastUse + a.cooldown) - Date.now()) : 0;

@@ -19,11 +19,11 @@ interface UserContext {
 export class AutomationManager {
     private readonly openai: OpenAI;
     private userContexts: Map<string, UserContext> = new Map();
-    private readonly GLOBAL_COOLDOWN = 1800000; // 30 minutes
+    public readonly GLOBAL_COOLDOWN = 1800000; // 30 minutes
     public readonly MIN_VOICE_TIME = 300000;   // 5 minutes en vocal
     public readonly MIN_MESSAGES = 5;          // Minimum de messages
     public readonly TROLL_CHANCE = 0.3;        // 30% de chance de troll
-    private readonly CHECK_INTERVAL = 300000;  // 5 minutes
+    public readonly CHECK_INTERVAL = 300000;  // 5 minutes
     private checkInterval: NodeJS.Timeout;
     private client: Client | null = null;
     private lastActionUses: Map<string, number> = new Map();

@@ -187,15 +187,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                             const eligibleUsers = Array.from(guild.members.cache.values())
                                 .map(member => ({
                                     member,
-                                    chance: automationManager.getTrollChance(member)
+                                    chance: automationManager.getTrollChanceDetails(member)
                                 }))
-                                .filter(entry => entry.chance > 0.01)
-                                .sort((a, b) => b.chance - a.chance);
+                                .filter(entry => entry.chance.total > 0.01)
+                                .sort((a, b) => b.chance.total - a.chance.total);
 
                             if (eligibleUsers.length === 0) return 'Aucun utilisateur éligible actuellement';
 
                             return eligibleUsers
-                                .map(entry => `${entry.member.displayName}: ${Math.floor(entry.chance * 100)}%`)
+                                .map(entry => `${entry.member.displayName}: ${Math.floor(entry.chance.total * 100)}%`)
                                 .join('\n');
                         })(),
                         inline: false

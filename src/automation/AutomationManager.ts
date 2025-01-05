@@ -380,6 +380,19 @@ export class AutomationManager {
         return context.baseChance;
     }
 
+    public getTrollChanceDetails(member: GuildMember): { total: number; base: number; bonus: number } {
+        const total = this.getTrollChance(member);
+        const base = this.getBaseChance(member);
+        const bonus = Math.max(0, total - base);
+        return { total, base, bonus };
+    }
+
+    public formatTrollChance(member: GuildMember): string | null {
+        const { total, base, bonus } = this.getTrollChanceDetails(member);
+        if (total <= 0) return null;
+        return `${Math.floor(total * 100)}% (${Math.floor(base * 100)}% + ${Math.floor(bonus * 100)}% bonus)`;
+    }
+
     public async setBaseChance(member: GuildMember, chance: number): Promise<void> {
         const context = this.getOrCreateUserContext(member.id);
         context.baseChance = Math.min(Math.max(chance, trollConfig.global.minBaseChance), trollConfig.global.maxBaseChance);

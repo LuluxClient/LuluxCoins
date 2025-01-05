@@ -47,15 +47,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         ]);
 
     try {
-        const trollChance = automationManager.getTrollChance(member);
-        const baseChance = automationManager.getBaseChance(member);
-        const temporaryBonus = trollChance - baseChance;
-
-        embed.addFields({
-            name: '🎭 Chance de Troll',
-            value: `${Math.floor(trollChance * 100)}% (${Math.floor(baseChance * 100)}% + ${Math.floor(temporaryBonus * 100)}% bonus)`,
-            inline: true
-        });
+        const trollChanceStr = automationManager.formatTrollChance(member);
+        if (trollChanceStr) {
+            embed.addFields({
+                name: '🎭 Chance de Troll',
+                value: trollChanceStr,
+                inline: true
+            });
+        }
     } catch (error) {
         console.error('Erreur lors de la récupération des chances de troll:', error);
         // Continue sans afficher les chances de troll

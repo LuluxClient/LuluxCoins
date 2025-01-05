@@ -35,11 +35,11 @@ export class BlackjackManager {
         // Vérifier si le joueur a assez d'argent (seulement si la mise n'est pas 0)
         if (wager > 0) {
             const userData = await db.getUser(player.id);
-            if (!userData || userData.balance < wager) {
-                throw new Error(`Vous n'avez pas assez de ZermiKoins ! (Solde: ${userData?.balance ?? 0} ZK)`);
+            if (!userData || userData.zermikoins < wager) {
+                throw new Error(`Vous n'avez pas assez de ZermiKoins ! (Solde: ${userData?.zermikoins ?? 0} ZK)`);
             }
             // Déduire la mise du joueur
-            await db.updateBalance(player.id, wager, 'remove');
+            await db.updateBalance(player.id, wager, 'remove', 'zermikoins');
         }
 
         const id = uuidv4();
@@ -197,7 +197,7 @@ export class BlackjackManager {
 
         // Vérifier si le joueur a assez d'argent pour doubler
         const userData = await db.getUser(playerId);
-        if (!userData || userData.balance < currentWager) {
+        if (!userData || userData.zermikoins < currentWager) {
             const message = this.gameMessages.get(gameId);
             if (message) {
                 const reply = await message.reply({
@@ -209,7 +209,7 @@ export class BlackjackManager {
         }
 
         // Déduire la mise supplémentaire pour le double
-        await db.updateBalance(playerId, currentWager, 'remove');
+        await db.updateBalance(playerId, currentWager, 'remove', 'zermikoins');
 
         // Doubler la mise de la main courante
         currentHand.wager = (currentHand.wager || game.initialWager) * 2;
@@ -352,20 +352,20 @@ export class BlackjackManager {
                     }
                 }
                 if (totalWinnings > 0) {
-                    await db.updateBalance(playerId, totalWinnings, 'add');
+                    await db.updateBalance(playerId, totalWinnings, 'add', 'zermikoins');
                 }
             } else {
                 const currentWager = game.player.hand.wager || game.wager;
                 if (game.player.hand.isNaturalBlackjack) {
                     const winnings = Math.floor(currentWager * 2.5);
-                    await db.updateBalance(playerId, winnings, 'add');
+                    await db.updateBalance(playerId, winnings, 'add', 'zermikoins');
                 } else {
-                    await db.updateBalance(playerId, currentWager * 2, 'add');
+                    await db.updateBalance(playerId, currentWager * 2, 'add', 'zermikoins');
                 }
             }
         } else if (winner === 'tie') {
             // En cas d'égalité, remboursement de la mise
-            await db.updateBalance(playerId, game.wager, 'add');
+            await db.updateBalance(playerId, game.wager, 'add', 'zermikoins');
         }
 
         const message = this.gameMessages.get(game.id);

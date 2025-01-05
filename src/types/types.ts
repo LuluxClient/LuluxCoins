@@ -15,6 +15,7 @@ export interface Transaction {
     type: 'add' | 'remove' | 'set' | 'purchase';
     userId: string;
     amount: number;
+    currency: 'zermikoins' | 'luluxcoins';
     itemName?: string;
     executorId?: string;
 }

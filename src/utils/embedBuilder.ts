@@ -42,45 +42,43 @@ export class EmbedCreator {
             .setFooter({ text: 'Utilisez /shop buy <item> pour acheter un objet!' });
     }
 
-    static createTransactionHistoryEmbed(transactions: Transaction[], page: number = 1) {
-        const itemsPerPage = 10;
-        const maxPage = Math.ceil(transactions.length / itemsPerPage);
-        
-        page = Math.max(1, Math.min(page, maxPage));
-        
-        const start = (page - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        const paginatedTransactions = transactions.slice(start, end);
-
-        const description = paginatedTransactions.length > 0
-            ? paginatedTransactions
-                .map(t => {
-                    const date = new Date(t.timestamp).toLocaleString();
-                    let description = '';
-                    switch (t.type) {
-                        case 'add':
-                            description = `<@${t.executorId}> a ajouté ${config.luluxcoinsEmoji} ${t.amount} à <@${t.userId}>`;
-                            break;
-                        case 'remove':
-                            description = `<@${t.executorId}> a retiré ${config.luluxcoinsEmoji} ${t.amount} à <@${t.userId}>`;
-                            break;
-                        case 'set':
-                            description = `<@${t.executorId}> a défini le solde de <@${t.userId}> à ${config.luluxcoinsEmoji} ${t.amount}`;
-                            break;
-                        case 'purchase':
-                            description = `<@${t.userId}> a acheté ${t.itemName} pour ${config.luluxcoinsEmoji} ${t.amount}`;
-                            break;
-                    }
-                    return `\`${date}\` ${description}`;
-                })
-                .join('\n')
-            : 'Aucune transaction trouvée pour cette page.';
+    static createTransactionHistoryEmbed(transactions: Transaction[], page: number) {
+        const pageSize = 10;
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        const pageTransactions = transactions.slice(start, end);
 
         return new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('📜 Historique des Transactions')
-            .setDescription(description)
-            .setFooter({ text: `Page ${page}/${maxPage || 1}` });
+            .setDescription(
+                pageTransactions
+                    .map(t => {
+                        const emoji = t.currency === 'zermikoins' ? config.zermikoinsEmoji : config.luluxcoinsEmoji;
+                        const date = new Date(t.timestamp).toLocaleString('fr-FR');
+                        let description = `[${date}] `;
+                        
+                        switch (t.type) {
+                            case 'add':
+                                description += `+${t.amount} ${emoji}`;
+                                break;
+                            case 'remove':
+                                description += `-${t.amount} ${emoji}`;
+                                break;
+                            case 'set':
+                                description += `= ${t.amount} ${emoji}`;
+                                break;
+                            case 'purchase':
+                                description += `Achat: ${t.itemName} (-${t.amount} ${emoji})`;
+                                break;
+                        }
+                        
+                        return description;
+                    })
+                    .join('\n')
+            )
+            .setFooter({ text: `Page ${page}` })
+            .setTimestamp();
     }
 
     static createPurchaseEmbed(item: ShopItem, user: UserData) {

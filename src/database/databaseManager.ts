@@ -88,6 +88,14 @@ export class DatabaseManager {
             user.zermikoins = operation === 'add' ? user.zermikoins + amount : user.zermikoins - amount;
         }
 
+        this.data.transactions.push({
+            timestamp: Date.now(),
+            type: operation,
+            userId,
+            amount,
+            currency
+        });
+
         await this.save();
         console.log(`Updated ${currency} balance for user ${userId}: ${operation} ${amount}`);
     }

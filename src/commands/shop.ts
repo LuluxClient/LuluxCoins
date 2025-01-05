@@ -76,7 +76,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         type: 'purchase',
         userId: interaction.user.id,
         amount: item.price,
-        itemName: item.name
+        itemName: item.name,
+        currency: 'luluxcoins'
     });
 
     // Get updated user data

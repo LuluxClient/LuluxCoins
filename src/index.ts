@@ -30,6 +30,7 @@ import { trollStateManager } from './automation/TrollState';
 import { AutomationManager } from './automation/AutomationManager';
 import { forcedNicknameManager } from './automation/ForcedNicknameManager';
 import { channelNameManager } from './automation/ChannelNameManager';
+import { initAutomationManager } from './automation/AutomationManager';
 
 const client = new Client({
     intents: [
@@ -107,6 +108,8 @@ client.once(Events.ClientReady, async () => {
 
     channelNameManager.setClient(client);
     console.log('Channel name manager initialized successfully');
+
+    initAutomationManager(config.openaiApiKey);
 });
 
 client.on(Events.InteractionCreate, async interaction => {

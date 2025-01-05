@@ -194,12 +194,18 @@ export class AutomationManager {
         const trollChance = this.getTrollChance(member);
         const context = this.getOrCreateUserContext(member.id);
         const shouldTroll = Math.random() < trollChance;
+        const now = Date.now();
 
         context.lastTrollAttempt = {
-            timestamp: Date.now(),
+            timestamp: now,
             chance: trollChance,
             success: shouldTroll
         };
+
+        if (shouldTroll) {
+            context.lastTrollTime = now;
+        }
+
         this.db.setUser(member.id, context);
 
         console.log(`Chance de troll pour ${member.displayName}: ${Math.floor(trollChance * 100)}% - Résultat: ${shouldTroll ? 'OUI' : 'NON'}`);

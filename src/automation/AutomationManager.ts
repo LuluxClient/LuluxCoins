@@ -141,10 +141,9 @@ export class AutomationManager {
                 activityStreak: 0
             };
             this.userContexts.set(userId, context);
-            this.db.setUser(userId, context);
+            void this.db.setUser(userId, context);
         }
         const context = this.userContexts.get(userId)!;
-        // Ensure lastActivity is always a Date object
         if (!(context.lastActivity instanceof Date)) {
             context.lastActivity = new Date(context.lastActivity);
         }
@@ -160,8 +159,13 @@ export class AutomationManager {
             return 0;
         }
 
-        if (now - context.lastTrollTime < trollConfig.global.globalCooldown || 
-            now - context.lastActivity.getTime() >= trollConfig.global.activityTimeout) {
+        // Vérifie le cooldown global de 4 heures
+        const FOUR_HOURS = 4 * 60 * 60 * 1000; // 4 heures en millisecondes
+        if (now - context.lastTrollTime < FOUR_HOURS) {
+            return 0;
+        }
+
+        if (now - context.lastActivity.getTime() >= trollConfig.global.activityTimeout) {
             return 0;
         }
 
@@ -219,10 +223,15 @@ export class AutomationManager {
         };
 
         if (shouldTroll) {
+            // Reset la chance et applique le cooldown quand le troll réussit
             context.lastTrollTime = now;
+            context.baseChance = trollConfig.global.startingChance;
+            context.messageCount = 0;
+            context.voiceTime = 0;
+            console.log(`Reset des stats de ${member.displayName} après un troll réussi`);
         }
 
-        this.db.setUser(member.id, context);
+        void this.db.setUser(member.id, context);
 
         console.log(`Chance de troll pour ${member.displayName}: ${Math.floor(trollChance * 100)}% - Résultat: ${shouldTroll ? 'OUI' : 'NON'}`);
         return shouldTroll;

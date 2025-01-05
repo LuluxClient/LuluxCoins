@@ -89,32 +89,36 @@ export class AutomationManager {
                 const member = guild.members.cache.get(userId);
                 if (!member) return null;
                 const chance = this.getTrollChance(member);
-                return { userId, context, chance };
+                const isActive = (now - context.lastActivity.getTime() < trollConfig.global.activityTimeout);
+                return { userId, context, chance, isActive };
             })
-            .filter(entry => entry !== null && entry.chance > 0.01)
+            .filter(entry => entry !== null && entry.isActive)
             .sort((a, b) => b!.chance - a!.chance);
 
+        debug += `👥 Utilisateurs Éligibles\n`;
         for (const entry of userChances) {
             if (!entry) continue;
             const { userId, context, chance } = entry;
+            const member = guild.members.cache.get(userId);
+            if (!member) continue;
+
             const minutesSinceActivity = Math.floor((now - context.lastActivity.getTime()) / 60000);
+            const inVoice = member.voice.channel ? '🎤' : '❌';
             
-            debug += `<@${userId}> (${Math.floor(chance * 100)}% de chance):\n`;
-            debug += `- Dernière activité: il y a ${minutesSinceActivity}min\n`;
-            debug += `- Messages: ${context.messageCount}\n`;
-            debug += `- Temps en vocal: ${Math.floor(context.voiceTime/60000)}min\n`;
+            debug += `${inVoice} ${member.displayName}: ${Math.floor(chance * 100)}%\n`;
+            debug += `├ Activité: ${minutesSinceActivity}min | Msgs: ${context.messageCount} | Vocal: ${Math.floor(context.voiceTime/60000)}min\n`;
             
             // Afficher le dernier troll basé sur la dernière tentative réussie ou lastTrollTime
             const lastSuccessfulTroll = context.lastTrollAttempt?.success ? context.lastTrollAttempt.timestamp : context.lastTrollTime;
             if (lastSuccessfulTroll) {
-                debug += `- Dernier troll: il y a ${Math.floor((now - lastSuccessfulTroll)/60000)}min\n`;
+                debug += `├ Dernier troll: ${Math.floor((now - lastSuccessfulTroll)/60000)}min\n`;
             } else {
-                debug += `- Dernier troll: jamais\n`;
+                debug += `├ Dernier troll: jamais\n`;
             }
             
             if (context.lastTrollAttempt) {
                 const timeSinceAttempt = Math.floor((now - context.lastTrollAttempt.timestamp) / 60000);
-                debug += `- Dernière tentative: il y a ${timeSinceAttempt}min (${Math.floor(context.lastTrollAttempt.chance * 100)}% - ${context.lastTrollAttempt.success ? '✅' : '❌'})\n`;
+                debug += `└ Tentative: ${timeSinceAttempt}min (${Math.floor(context.lastTrollAttempt.chance * 100)}% - ${context.lastTrollAttempt.success ? '✅' : '❌'})\n`;
             }
             
             debug += '\n';
@@ -315,33 +319,38 @@ export class AutomationManager {
         const guild = await this.getGuild();
         if (!guild) return;
 
+        const now = Date.now();
+
+        // Mettre à jour les chances pour tous les utilisateurs actifs
         for (const [userId, context] of this.userContexts.entries()) {
             try {
                 const member = await guild.members.fetch(userId);
-                if (member.voice.channel) {
-                    if (!context.lastVoiceJoin) {
-                        context.lastVoiceJoin = Date.now();
-                    }
-                    
-                    context.lastActivity = new Date();
+                const isActive = (now - context.lastActivity.getTime() < trollConfig.global.activityTimeout);
+                
+                if (isActive) {
                     await this.updateBaseChance(userId);
+
+                    if (member.voice.channel) {
+                        if (!context.lastVoiceJoin) {
+                            context.lastVoiceJoin = now;
+                        }
+                    } else if (context.lastVoiceJoin) {
+                        // Si l'utilisateur vient de quitter le vocal, on met à jour son temps total
+                        context.voiceTime += now - context.lastVoiceJoin;
+                        context.lastVoiceJoin = 0;
+                        this.db.setUser(userId, context);
+                    }
 
                     if (await this.shouldTrollUser(member)) {
                         const actionName = await this.selectAction(member);
                         if (actionName) {
                             const action = trollActions.find((a: TrollAction) => a.name === actionName);
                             if (action) {
-                                console.log(`Exécution de l'action ${actionName} sur ${member.displayName} (check vocal)`);
+                                console.log(`Exécution de l'action ${actionName} sur ${member.displayName}`);
                                 await action.execute(member);
                             }
                         }
                     }
-                } else if (context.lastVoiceJoin) {
-                    // Si l'utilisateur vient de quitter le vocal, on met à jour son temps total
-                    const now = Date.now();
-                    context.voiceTime += now - context.lastVoiceJoin;
-                    context.lastVoiceJoin = 0;
-                    this.db.setUser(userId, context);
                 }
             } catch (error) {
                 console.error(`Erreur lors de la vérification de l'utilisateur ${userId}:`, error);

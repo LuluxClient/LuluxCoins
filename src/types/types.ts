@@ -1,7 +1,13 @@
 export interface UserData {
-    id: string;
+    userId: string;
     username: string;
     balance: number;
+    zermikoins: number;
+    lastDaily?: number;
+    lastMessage?: number;
+    messageCount?: number;
+    voiceTime?: number;
+    lastVoiceJoin?: number;
 }
 
 export interface Transaction {

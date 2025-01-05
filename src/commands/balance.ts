@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from '
 import { db } from '../database/databaseManager';
 import { config } from '../config';
 import { automationManager } from '../automation/AutomationManager';
-import { UserData } from '../database/types';
+import { UserData } from '../types/types';
 
 export const data = new SlashCommandBuilder()
     .setName('balance')

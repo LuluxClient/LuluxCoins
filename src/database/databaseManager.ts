@@ -1,31 +1,10 @@
 import { writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-
-export interface UserData {
-    userId: string;
-    username: string;
-    balance: number;
-    zermikoins: number;
-    lastDaily?: number;
-}
-
-export interface Transaction {
-    timestamp: number;
-    type: 'add' | 'remove' | 'set' | 'purchase';
-    userId: string;
-    amount: number;
-    itemName?: string;
-    executorId?: string;
-}
-
-interface DatabaseData {
-    users: UserData[];
-    transactions: Transaction[];
-}
+import { UserData, Transaction, DatabaseStructure } from '../types/types';
 
 export class DatabaseManager {
-    private data: DatabaseData = { users: [], transactions: [] };
+    private data: DatabaseStructure = { users: [], transactions: [] };
     private readonly dbPath = join(process.cwd(), 'database.json');
 
     public async init() {

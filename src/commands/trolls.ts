@@ -50,7 +50,7 @@ export const data = new SlashCommandBuilder()
                     .setRequired(false)))
     .addSubcommand(subcommand =>
         subcommand
-            .setName('setChance')
+            .setName('set_chance')
             .setDescription('Définir le pourcentage de chance de troll')
             .addUserOption(option =>
                 option
@@ -289,7 +289,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             }
             break;
 
-        case 'setChance':
+        case 'set_chance':
             const targetUser = interaction.options.getMember('target');
             const percentage = interaction.options.getNumber('percentage')!;
             const applyToAll = interaction.options.getBoolean('all') || false;

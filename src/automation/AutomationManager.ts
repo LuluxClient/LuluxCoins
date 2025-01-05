@@ -2,13 +2,19 @@ import { Client, GuildMember, Message } from 'discord.js';
 import { trollActions } from './actions';
 import OpenAI from 'openai';
 import { TrollAction } from './types/AutomationType';
+import { trollConfig } from './config/troll.config';
+import { TrollDatabase } from './database/TrollDatabase';
 
-interface UserContext {
+export interface UserContext {
     userId: string;
     lastTrollTime: number;
     voiceTime: number;
     messageCount: number;
     lastActivity: Date;
+    baseChance: number;         // Chance de base qui évolue dans le temps
+    lastMessageTime: number;    // Dernier message envoyé
+    lastVoiceJoin: number;     // Dernière connexion vocale
+    activityStreak: number;     // Jours consécutifs d'activité
     lastTrollAttempt?: {
         timestamp: number;
         chance: number;
@@ -18,12 +24,8 @@ interface UserContext {
 
 export class AutomationManager {
     private readonly openai: OpenAI;
+    private readonly db: TrollDatabase;
     private userContexts: Map<string, UserContext> = new Map();
-    public readonly GLOBAL_COOLDOWN = 1800000; // 30 minutes
-    public readonly MIN_VOICE_TIME = 300000;   // 5 minutes en vocal
-    public readonly MIN_MESSAGES = 5;          // Minimum de messages
-    public readonly TROLL_CHANCE = 0.3;        // 30% de chance de troll
-    public readonly CHECK_INTERVAL = 300000;  // 5 minutes
     private checkInterval: NodeJS.Timeout;
     private client: Client | null = null;
     private lastActionUses: Map<string, number> = new Map();
@@ -31,18 +33,27 @@ export class AutomationManager {
 
     constructor(apiKey: string) {
         this.openai = new OpenAI({ apiKey });
-        this.nextCheckTime = Date.now() + this.CHECK_INTERVAL;
+        this.db = new TrollDatabase();
+        this.nextCheckTime = Date.now() + trollConfig.global.checkInterval;
         this.checkInterval = setInterval(() => {
             this.checkForTrollOpportunities();
-            this.nextCheckTime = Date.now() + this.CHECK_INTERVAL;
-        }, this.CHECK_INTERVAL);
+            this.nextCheckTime = Date.now() + trollConfig.global.checkInterval;
+        }, trollConfig.global.checkInterval);
+    }
+
+    public async init() {
+        await this.db.init();
+        // Charger les données des utilisateurs depuis la DB
+        const users = await this.db.getAllUsers();
+        for (const [userId, context] of users) {
+            this.userContexts.set(userId, context);
+        }
     }
 
     public getNextCheckTime(): number {
         const now = Date.now();
-        // Si le nextCheckTime est dépassé, on le met à jour
         if (this.nextCheckTime <= now) {
-            this.nextCheckTime = now + this.CHECK_INTERVAL;
+            this.nextCheckTime = now + trollConfig.global.checkInterval;
         }
         return this.nextCheckTime;
     }
@@ -57,7 +68,6 @@ export class AutomationManager {
         const guild = this.client?.guilds.cache.first();
         if (!guild) return 'Aucun serveur trouvé';
 
-        // Trier les utilisateurs par chance de troll
         const userChances = Array.from(this.userContexts.entries())
             .map(([userId, context]) => {
                 const member = guild.members.cache.get(userId);
@@ -65,7 +75,7 @@ export class AutomationManager {
                 const chance = this.getTrollChance(member);
                 return { userId, context, chance };
             })
-            .filter(entry => entry !== null && entry.chance > 0.01) // Filtrer les chances > 1%
+            .filter(entry => entry !== null && entry.chance > 0.01)
             .sort((a, b) => b!.chance - a!.chance);
 
         for (const entry of userChances) {
@@ -96,13 +106,19 @@ export class AutomationManager {
 
     private getOrCreateUserContext(userId: string): UserContext {
         if (!this.userContexts.has(userId)) {
-            this.userContexts.set(userId, {
+            const context: UserContext = {
                 userId,
                 lastTrollTime: 0,
                 voiceTime: 0,
                 messageCount: 0,
-                lastActivity: new Date()
-            });
+                lastActivity: new Date(),
+                baseChance: trollConfig.global.startingChance,
+                lastMessageTime: 0,
+                lastVoiceJoin: 0,
+                activityStreak: 0
+            };
+            this.userContexts.set(userId, context);
+            this.db.setUser(userId, context);
         }
         return this.userContexts.get(userId)!;
     }
@@ -111,34 +127,50 @@ export class AutomationManager {
         const context = this.getOrCreateUserContext(member.id);
         const now = Date.now();
 
-        // Si cooldown actif, retourne 0%
-        if (now - context.lastTrollTime < this.GLOBAL_COOLDOWN) {
+        if (now - context.lastTrollTime < trollConfig.global.globalCooldown || 
+            now - context.lastActivity.getTime() >= trollConfig.global.activityTimeout) {
             return 0;
         }
 
-        // Si inactif depuis 5 minutes, retourne 0%
-        if (now - context.lastActivity.getTime() >= 300000) {
-            return 0;
-        }
+        let temporaryBonus = 0;
 
-        let trollChance = this.TROLL_CHANCE;
-
-        // Bonus vocal
         if (member.voice.channel) {
-            trollChance += 0.2;
+            temporaryBonus += trollConfig.temporaryBonuses.inVoiceChat;
         }
 
-        // Bonus messages
-        if (context.messageCount >= this.MIN_MESSAGES) {
-            trollChance += 0.1;
+        if (context.messageCount >= trollConfig.temporaryBonuses.minMessages) {
+            temporaryBonus += trollConfig.temporaryBonuses.recentMessages;
         }
 
-        // Bonus temps vocal
-        if (context.voiceTime >= this.MIN_VOICE_TIME) {
-            trollChance += 0.1;
+        if (context.voiceTime >= trollConfig.temporaryBonuses.minVoiceTime) {
+            temporaryBonus += trollConfig.temporaryBonuses.voiceTime;
         }
 
-        return trollChance;
+        return Math.min(context.baseChance + temporaryBonus, trollConfig.global.maxTotalChance);
+    }
+
+    private async updateBaseChance(userId: string) {
+        const context = this.getOrCreateUserContext(userId);
+        const now = Date.now();
+
+        const hasActivityToday = (now - context.lastMessageTime < trollConfig.global.activityTimeout) || 
+                               (now - context.lastVoiceJoin < trollConfig.global.activityTimeout);
+
+        if (hasActivityToday) {
+            context.activityStreak++;
+            context.baseChance = Math.min(
+                context.baseChance + trollConfig.global.activityBonus + (context.activityStreak * trollConfig.global.streakBonus),
+                trollConfig.global.maxBaseChance
+            );
+        } else {
+            context.activityStreak = 0;
+            context.baseChance = Math.max(
+                context.baseChance - trollConfig.global.dailyDecay,
+                trollConfig.global.minBaseChance
+            );
+        }
+
+        this.db.setUser(userId, context);
     }
 
     private async shouldTrollUser(member: GuildMember): Promise<boolean> {
@@ -146,12 +178,12 @@ export class AutomationManager {
         const context = this.getOrCreateUserContext(member.id);
         const shouldTroll = Math.random() < trollChance;
 
-        // Enregistrer la tentative
         context.lastTrollAttempt = {
             timestamp: Date.now(),
             chance: trollChance,
             success: shouldTroll
         };
+        this.db.setUser(member.id, context);
 
         console.log(`Chance de troll pour ${member.displayName}: ${Math.floor(trollChance * 100)}% - Résultat: ${shouldTroll ? 'OUI' : 'NON'}`);
         return shouldTroll;
@@ -165,7 +197,6 @@ export class AutomationManager {
             activity: member.presence?.activities[0]?.name || 'rien'
         };
 
-        // Demander à OpenAI de choisir une action appropriée
         const response = await this.openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: [
@@ -186,7 +217,21 @@ export class AutomationManager {
         });
 
         const action = response.choices[0]?.message?.content || null;
-        return action && trollActions.some(a => a.name === action.trim().toLowerCase()) ? action.trim().toLowerCase() : null;
+        if (!action) return null;
+
+        const actionName = action.trim().toLowerCase();
+        const actionConfig = trollConfig.actions[actionName as keyof typeof trollConfig.actions];
+        
+        if (!actionConfig) return null;
+
+        // Vérifier si l'action a les conditions requises
+        const trollChance = this.getTrollChance(member);
+        if (trollChance < actionConfig.requiredChance) {
+            console.log(`Action ${actionName} requiert ${actionConfig.requiredChance * 100}% de chance (actuel: ${trollChance * 100}%)`);
+            return null;
+        }
+
+        return actionName;
     }
 
     public async handleMessage(message: Message): Promise<void> {
@@ -195,6 +240,9 @@ export class AutomationManager {
         const context = this.getOrCreateUserContext(message.author.id);
         context.messageCount++;
         context.lastActivity = new Date();
+        context.lastMessageTime = Date.now();
+
+        await this.updateBaseChance(message.author.id);
 
         const member = message.member;
         if (!member) return;
@@ -207,9 +255,9 @@ export class AutomationManager {
                     console.log(`Exécution de l'action ${actionName} sur ${member.displayName}`);
                     await action.execute(member);
                     
-                    // Mettre à jour le contexte
                     context.lastTrollTime = Date.now();
-                    context.messageCount = 0; // Reset le compteur
+                    context.messageCount = 0;
+                    this.db.setUser(member.id, context);
                 }
             }
         }
@@ -219,15 +267,19 @@ export class AutomationManager {
         const guild = await this.getGuild();
         if (!guild) return;
 
-        // Mettre à jour le temps en vocal pour tous les utilisateurs
         for (const [userId, context] of this.userContexts.entries()) {
             try {
                 const member = await guild.members.fetch(userId);
                 if (member.voice.channel) {
-                    context.voiceTime += this.CHECK_INTERVAL; // +5 minutes
+                    if (context.voiceTime === 0) {
+                        context.lastVoiceJoin = Date.now();
+                    }
+                    
+                    context.voiceTime += trollConfig.global.checkInterval;
                     context.lastActivity = new Date();
 
-                    // Vérifier si on doit troller l'utilisateur
+                    await this.updateBaseChance(userId);
+
                     if (await this.shouldTrollUser(member)) {
                         const actionName = await this.selectAction(member);
                         if (actionName) {
@@ -236,14 +288,15 @@ export class AutomationManager {
                                 console.log(`Exécution de l'action ${actionName} sur ${member.displayName} (check vocal)`);
                                 await action.execute(member);
                                 
-                                // Mettre à jour le contexte
                                 context.lastTrollTime = Date.now();
                                 context.messageCount = 0;
+                                this.db.setUser(member.id, context);
                             }
                         }
                     }
                 } else {
-                    context.voiceTime = 0; // Reset si pas en vocal
+                    context.voiceTime = 0;
+                    this.db.setUser(userId, context);
                 }
             } catch (error) {
                 console.error(`Erreur lors de la vérification de l'utilisateur ${userId}:`, error);
@@ -262,6 +315,7 @@ export class AutomationManager {
             if (action) {
                 console.log(`Exécution de l'action ${actionName} sur ${target.displayName}`);
                 await action.execute(target);
+                this.lastActionUses.set(action.name, Date.now());
             }
         }
     }
@@ -270,14 +324,23 @@ export class AutomationManager {
         if (this.checkInterval) {
             clearInterval(this.checkInterval);
         }
+        this.db.cleanup();
     }
 
-    private async executeAction(action: TrollAction, target: GuildMember): Promise<void> {
-        try {
-            await action.execute(target);
-            this.lastActionUses.set(action.name, Date.now());
-        } catch (error) {
-            console.error(`Error executing action ${action.name}:`, error);
-        }
+    public getBaseChance(member: GuildMember): number {
+        const context = this.getOrCreateUserContext(member.id);
+        return context.baseChance;
     }
+
+    public async setBaseChance(member: GuildMember, chance: number): Promise<void> {
+        const context = this.getOrCreateUserContext(member.id);
+        context.baseChance = Math.min(Math.max(chance, trollConfig.global.minBaseChance), trollConfig.global.maxBaseChance);
+        this.db.setUser(member.id, context);
+    }
+}
+
+export let automationManager: AutomationManager;
+
+export function initAutomationManager(apiKey: string) {
+    automationManager = new AutomationManager(apiKey);
 } 

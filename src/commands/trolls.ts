@@ -4,6 +4,7 @@ import { trollActions } from '../automation/actions';
 import { trollStateManager } from '../automation/TrollState';
 import { config } from '../config';
 import { TrollAction } from '../automation/types/AutomationType';
+import { trollConfig } from '../automation/config/troll.config';
 
 const ALLOWED_USER_ID = '295515087731556362';
 const automationManager = new AutomationManager(config.openaiApiKey);
@@ -46,6 +47,27 @@ export const data = new SlashCommandBuilder()
                         { name: 'Surprise IA', value: 'surpriseAI' },
                         { name: 'Surnom Forcé', value: 'forceNickname' }
                     )
+                    .setRequired(false)))
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('setChance')
+            .setDescription('Définir le pourcentage de chance de troll')
+            .addUserOption(option =>
+                option
+                    .setName('target')
+                    .setDescription('L\'utilisateur à modifier')
+                    .setRequired(true))
+            .addNumberOption(option =>
+                option
+                    .setName('percentage')
+                    .setDescription('Pourcentage de chance (0-100)')
+                    .setMinValue(0)
+                    .setMaxValue(100)
+                    .setRequired(true))
+            .addBooleanOption(option =>
+                option
+                    .setName('all')
+                    .setDescription('Appliquer à tous les utilisateurs')
                     .setRequired(false)));
 
 function getActionConditions(action: TrollAction): string {
@@ -127,7 +149,32 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     },
                     {
                         name: '📊 Conditions de Troll',
-                        value: `- Utilisateur actif dans les 5 dernières minutes\n- Messages > ${automationManager.MIN_MESSAGES}\n- Temps en vocal > ${Math.floor(automationManager.MIN_VOICE_TIME/60000)}min\n- ${Math.floor(automationManager.TROLL_CHANCE * 100)}% de chance de troll`,
+                        value: `- Utilisateur actif dans les 5 dernières minutes\n- Messages > ${trollConfig.temporaryBonuses.minMessages}\n- Temps en vocal > ${Math.floor(trollConfig.temporaryBonuses.minVoiceTime/60000)}min\n- ${Math.floor(trollConfig.global.startingChance * 100)}% de chance de troll`,
+                        inline: false
+                    },
+                    {
+                        name: '📈 Système de Pourcentage',
+                        value: [
+                            '**Chance de Base (0-40%)**',
+                            '- Tout le monde démarre à 0%',
+                            '- +2% par jour d\'activité',
+                            '- +1% par jour consécutif (streak)',
+                            '- -5% par jour d\'inactivité',
+                            '',
+                            '**Bonus Temporaires**',
+                            '- En vocal: +20%',
+                            '- 5+ messages: +10%',
+                            '- 5+ min en vocal: +10%',
+                            '',
+                            '**Conditions d\'Activité**',
+                            '- Message dans les 24h OU',
+                            '- Connexion vocale dans les 24h',
+                            '',
+                            '**Limites**',
+                            '- Base max: 40%',
+                            '- Bonus max: 40%',
+                            '- Total max: 80%'
+                        ].join('\n'),
                         inline: false
                     },
                     {
@@ -154,7 +201,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     },
                     {
                         name: '⏱️ Intervalles de Vérification',
-                        value: `- Messages: Instantané\n- Vocal: Toutes les ${Math.floor(automationManager.CHECK_INTERVAL/60000)} minutes\n- Inactivité: Après 5 minutes sans activité\n- Cooldown global: ${Math.floor(automationManager.GLOBAL_COOLDOWN/60000)} minutes`,
+                        value: `- Messages: Instantané\n- Vocal: Toutes les ${Math.floor(trollConfig.global.checkInterval/60000)} minutes\n- Inactivité: Après 5 minutes sans activité\n- Cooldown global: ${Math.floor(trollConfig.global.globalCooldown/60000)} minutes`,
                         inline: false
                     },
                     {
@@ -239,6 +286,48 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .setDescription(`Une erreur est survenue: ${error?.message || 'Erreur inconnue'}`)
                     .setTimestamp();
                 await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+            }
+            break;
+
+        case 'setChance':
+            const targetUser = interaction.options.getMember('target');
+            const percentage = interaction.options.getNumber('percentage')!;
+            const applyToAll = interaction.options.getBoolean('all') || false;
+            
+            if (applyToAll) {
+                const guild = interaction.guild;
+                if (!guild) {
+                    await interaction.reply({ content: 'Serveur introuvable !', ephemeral: true });
+                    return;
+                }
+
+                const members = await guild.members.fetch();
+                for (const member of members.values()) {
+                    if (!member.user.bot) {
+                        await automationManager.setBaseChance(member, percentage / 100);
+                    }
+                }
+
+                const allSetEmbed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('✅ Chances Modifiées')
+                    .setDescription(`Pourcentage de base défini à ${percentage}% pour tous les utilisateurs.`)
+                    .setTimestamp();
+                await interaction.reply({ embeds: [allSetEmbed], ephemeral: true });
+            } else {
+                if (!targetUser || !(targetUser instanceof GuildMember)) {
+                    await interaction.reply({ content: 'Utilisateur introuvable !', ephemeral: true });
+                    return;
+                }
+
+                await automationManager.setBaseChance(targetUser, percentage / 100);
+
+                const setEmbed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('✅ Chance Modifiée')
+                    .setDescription(`Pourcentage de base défini à ${percentage}% pour ${targetUser.displayName}.`)
+                    .setTimestamp();
+                await interaction.reply({ embeds: [setEmbed], ephemeral: true });
             }
             break;
     }

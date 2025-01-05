@@ -1,5 +1,7 @@
 import { GuildMember, TextChannel, Message } from 'discord.js';
 import { TrollAction } from '../types/AutomationType';
+import { UserContext } from '../AutomationManager';
+import { automationManager } from '../AutomationManager';
 import OpenAI from 'openai';
 import { config } from '../../config';
 import { trollActions } from './index';
@@ -79,7 +81,22 @@ async function checkAnswer(userAnswer: string, correctAnswer: string): Promise<{
 export const discussion: TrollAction = {
     name: 'discussion',
     description: 'Pose une question complexe et drôle avec un compte à rebours',
-    cooldown: 900000, // 15 minutes
+    cooldown: 3600000, // 1 heure
+    canExecute: async (member: GuildMember, context: UserContext) => {
+        const now = Date.now();
+        const twoMinutesAgo = now - 120000; // 2 minutes
+        
+        // Vérifier si l'utilisateur a 100% de chance de troll
+        const trollChance = automationManager.getTrollChance(member);
+        if (trollChance < 1) return false;
+
+        // Vérifier les messages récents (5 messages dans les 2 dernières minutes)
+        const recentMessages = context.messageCount;
+        const lastMessageTime = context.lastMessageTime;
+        if (recentMessages < 5 || lastMessageTime < twoMinutesAgo) return false;
+
+        return true;
+    },
     execute: async (target: GuildMember) => {
         console.log('Executing discussion troll for:', target.displayName);
         

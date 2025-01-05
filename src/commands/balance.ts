@@ -1,72 +1,53 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { db } from '../database/databaseManager';
 import { config } from '../config';
+import { automationManager } from '../automation/AutomationManager';
 
 export const data = new SlashCommandBuilder()
     .setName('balance')
-    .setDescription('Voir son solde ou celui d\'un autre utilisateur')
+    .setDescription('Voir son solde de Zermikoins')
     .addUserOption(option =>
         option
-            .setName('target')
-            .setDescription('L\'utilisateur dont tu veux voir le solde')
-            .setRequired(false))
-    .addStringOption(option =>
-        option
-            .setName('currency')
-            .setDescription('Type de monnaie à afficher')
-            .setRequired(false)
-            .addChoices(
-                { name: 'LuluxCoins', value: 'luluxcoins' },
-                { name: 'ZermiKoins', value: 'zermikoins' },
-                { name: 'Tout', value: 'all' }
-            ));
+            .setName('user')
+            .setDescription('L\'utilisateur dont vous voulez voir le solde')
+            .setRequired(false));
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    const target = interaction.options.getUser('target') || interaction.user;
-    const currency = interaction.options.getString('currency') || 'all';
-
-    try {
-        const userData = await db.getUser(target.id);
-        if (!userData) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle('❌ Erreur')
-                .setDescription('Cet utilisateur n\'a pas de compte.')
-                .setTimestamp();
-            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-            return;
-        }
-
-        const balanceEmbed = new EmbedBuilder()
-            .setColor('#0099ff')
-            .setTitle(`💰 Solde de ${target.username}`);
-
-        if (currency === 'all' || currency === 'luluxcoins') {
-            balanceEmbed.addFields({
-                name: 'LuluxCoins',
-                value: `${userData.balance} ${config.luluxcoinsEmoji}`,
-                inline: true
-            });
-        }
-
-        if (currency === 'all' || currency === 'zermikoins') {
-            balanceEmbed.addFields({
-                name: 'ZermiKoins',
-                value: `${userData.zermikoins || 0} ${config.zermikoinsEmoji}`,
-                inline: true
-            });
-        }
-
-        balanceEmbed.setTimestamp();
-
-        await interaction.reply({ embeds: [balanceEmbed], ephemeral: true });
-    } catch (error) {
-        console.error('Error in balance command:', error);
-        const errorEmbed = new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('❌ Erreur')
-            .setDescription('Une erreur est survenue lors de la récupération du solde.')
-            .setTimestamp();
-        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+    const target = interaction.options.getUser('user') || interaction.user;
+    const member = await interaction.guild?.members.fetch(target.id);
+    
+    if (!member) {
+        await interaction.reply({ content: 'Utilisateur introuvable !', ephemeral: true });
+        return;
     }
+
+    const userData = await db.getUser(target.id);
+    if (!userData) {
+        await interaction.reply({ content: 'Cet utilisateur n\'a pas de compte !', ephemeral: true });
+        return;
+    }
+
+    const trollChance = automationManager.getTrollChance(member);
+    const baseChance = automationManager.getBaseChance(member);
+    const temporaryBonus = trollChance - baseChance;
+
+    const embed = new EmbedBuilder()
+        .setColor('#FFD700')
+        .setTitle(`💰 Balance de ${target.username}`)
+        .setThumbnail(target.displayAvatarURL())
+        .addFields(
+            {
+                name: 'Zermikoins',
+                value: `${userData.zermikoins} ${config.zermikoinsEmoji}`,
+                inline: true
+            },
+            {
+                name: '🎭 Chance de Troll',
+                value: `${Math.floor(trollChance * 100)}% (${Math.floor(baseChance * 100)}% + ${Math.floor(temporaryBonus * 100)}% bonus)`,
+                inline: true
+            }
+        )
+        .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
 } 

@@ -30,6 +30,7 @@ import { trollStateManager } from './automation/TrollState';
 import { AutomationManager } from './automation/AutomationManager';
 import { forcedNicknameManager } from './automation/ForcedNicknameManager';
 import { channelNameManager } from './automation/ChannelNameManager';
+import { trollConfig } from './automation/config/troll.config';
 
 const client = new Client({
     intents: [
@@ -177,6 +178,35 @@ client.on(Events.MessageCreate, async message => {
 
     if (trollStateManager.isEnabled() && !message.author.bot) {
         await automationManager.handleMessage(message);
+    }
+});
+
+// Suivi du temps vocal
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId) {
+        // Connexion vocale
+        const context = automationManager.getUserContext(newState.member!.id) || {
+            userId: newState.member!.id,
+            lastTrollTime: 0,
+            voiceTime: 0,
+            messageCount: 0,
+            lastActivity: new Date(),
+            baseChance: trollConfig.global.startingChance,
+            lastMessageTime: 0,
+            lastVoiceJoin: Date.now(),
+            activityStreak: 0
+        };
+        context.lastVoiceJoin = Date.now();
+        context.lastActivity = new Date();
+        await automationManager.saveUserContext(context);
+    } else if (oldState.channelId && !newState.channelId) {
+        // Déconnexion vocale
+        const context = automationManager.getUserContext(oldState.member!.id);
+        if (context?.lastVoiceJoin) {
+            context.voiceTime += Date.now() - context.lastVoiceJoin;
+            context.lastVoiceJoin = 0;
+            await automationManager.saveUserContext(context);
+        }
     }
 });
 

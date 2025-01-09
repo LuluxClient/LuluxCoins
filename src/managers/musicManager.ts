@@ -226,28 +226,10 @@ export class MusicManager {
         }
         
         try {
-            if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection perdue - tentative de reconnexion...');
-                if (this.client) {
-                    const channelId = this.connection?.joinConfig.channelId || this.getCurrentVoiceChannel()?.id;
-                    if (!channelId) {
-                        throw new Error('Impossible de retrouver le canal vocal');
-                    }
-                    const channel = await this.client.channels.fetch(channelId) as VoiceChannel;
-                    if (channel) {
-                        const newConnection = joinVoiceChannel({
-                            channelId: channel.id,
-                            guildId: channel.guild.id,
-                            adapterCreator: channel.guild.voiceAdapterCreator,
-                            selfDeaf: true
-                        });
-                        this.setConnection(newConnection);
-                    } else {
-                        throw new Error('Canal vocal introuvable');
-                    }
-                } else {
-                    throw new Error('Client Discord non initialisé');
-                }
+            // Vérifier et recréer la connexion si nécessaire
+            if (!this.connection || this.connection.state.status !== VoiceConnectionStatus.Ready) {
+                console.error('Connection non disponible ou non prête');
+                throw new Error('Connection non disponible');
             }
 
             console.log('Création de la ressource audio pour:', this.currentItem.title);
@@ -262,7 +244,6 @@ export class MusicManager {
             
             console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
             
-            const cookiesPath = path.join(process.cwd(), 'cookies.txt');
             await youtubeDl(this.currentItem.url, {
                 extractAudio: true,
                 audioFormat: 'mp3',
@@ -271,7 +252,7 @@ export class MusicManager {
                 noCheckCertificates: true,
                 noWarnings: true,
                 preferFreeFormats: true,
-                cookies: cookiesPath,
+                cookies: path.join(process.cwd(), 'cookies.txt'),
                 addHeader: [
                     'referer:youtube.com',
                     'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -284,9 +265,6 @@ export class MusicManager {
             });
 
             // S'assurer que la connexion est active
-            if (!this.connection) {
-                throw new Error('Connection non disponible');
-            }
             this.connection.subscribe(this.audioPlayer);
             
             // Jouer la ressource
@@ -304,7 +282,7 @@ export class MusicManager {
 
         } catch (error) {
             console.error('Erreur lors de la lecture:', error);
-            this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
+            await this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
             this.playNext();
         }
     }
@@ -340,15 +318,37 @@ export class MusicManager {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('❌ Erreur')
-                .setDescription('Aucune musique en cours de lecture fdp')
+                .setDescription('Aucune musique en cours de lecture')
                 .setTimestamp();
 
-            this.sendMessage(embed);
+            await this.sendMessage(embed);
             return;
         }
 
+        // Stocker l'état actuel avant le skip
+        const wasPlaying = this.isPlaying;
+        const currentConnection = this.connection;
+
+        // Arrêter la lecture actuelle
         this.audioPlayer.stop();
-        await this.playNext();
+
+        // Si on était en train de jouer et qu'on a une connexion
+        if (wasPlaying && currentConnection && currentConnection.state.status === VoiceConnectionStatus.Ready) {
+            try {
+                await this.playNext();
+            } catch (error) {
+                console.error('Erreur lors du skip:', error);
+                const embed = new EmbedBuilder()
+                    .setColor('#ff0000')
+                    .setTitle('❌ Erreur')
+                    .setDescription('Une erreur est survenue lors du skip.')
+                    .setTimestamp();
+                await this.sendMessage(embed);
+            }
+        } else {
+            // Si on n'a pas de connexion valide, on nettoie tout
+            this.disconnect();
+        }
     }
 
     setConnection(connection: VoiceConnection) {

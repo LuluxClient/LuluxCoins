@@ -253,21 +253,9 @@ export class MusicManager {
 
             console.log('Création de la ressource audio pour:', this.currentItem.title);
             
-            // Télécharger la musique d'abord
-            const safeTitle = this.currentItem.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            const soundsPath = path.join(process.cwd(), 'sounds');
-            const serverSoundsPath = path.join(soundsPath, 'music');
-            await fs.mkdir(serverSoundsPath, { recursive: true });
-            
-            const filename = path.join(serverSoundsPath, `${safeTitle}.mp3`);
-            
-            console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
-            
-            await youtubeDl(this.currentItem.url, {
-                extractAudio: true,
-                audioFormat: 'mp3',
-                audioQuality: 0,
-                output: filename,
+            // Obtenir l'URL du stream audio
+            const info = await youtubeDl(this.currentItem.url, {
+                dumpSingleJson: true,
                 noCheckCertificates: true,
                 noWarnings: true,
                 preferFreeFormats: true,
@@ -276,27 +264,23 @@ export class MusicManager {
                     'referer:youtube.com',
                     'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                 ]
-            });
+            }) as any;
 
-            // Créer la ressource audio à partir du fichier téléchargé
-            const resource = createAudioResource(filename, {
-                inlineVolume: true
+            const audioUrl = info.url || info.formats?.[0]?.url;
+            if (!audioUrl) {
+                throw new Error('Impossible de trouver l\'URL audio');
+            }
+
+            // Créer la ressource audio directement depuis l'URL
+            const resource = createAudioResource(audioUrl, {
+                inlineVolume: true,
+                inputType: StreamType.Arbitrary
             });
 
             // S'assurer que la connexion est active et subscribe l'audioPlayer
             if (this.connection && this.connection.state.status === VoiceConnectionStatus.Ready) {
                 this.connection.subscribe(this.audioPlayer);
                 this.audioPlayer.play(resource);
-
-                // Nettoyer le fichier après la lecture
-                this.audioPlayer.once(AudioPlayerStatus.Idle, async () => {
-                    try {
-                        await fs.unlink(filename);
-                        console.log(`[Cleanup] Deleted file: ${filename}`);
-                    } catch (error) {
-                        console.error('[Cleanup] Error deleting file:', error);
-                    }
-                });
             } else {
                 throw new Error('La connexion a été perdue pendant la préparation de la lecture');
             }

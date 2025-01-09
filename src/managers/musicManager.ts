@@ -229,7 +229,26 @@ export class MusicManager {
             // Vérifier et recréer la connexion si nécessaire
             if (!this.connection || this.connection.state.status !== VoiceConnectionStatus.Ready) {
                 console.error('Connection non disponible ou non prête');
-                throw new Error('Connection non disponible');
+                if (this.client) {
+                    const lastChannelId = this.connection?.joinConfig.channelId;
+                    if (lastChannelId) {
+                        const channel = await this.client.channels.fetch(lastChannelId) as VoiceChannel;
+                        if (channel) {
+                            const newConnection = joinVoiceChannel({
+                                channelId: channel.id,
+                                guildId: channel.guild.id,
+                                adapterCreator: channel.guild.voiceAdapterCreator,
+                                selfDeaf: true
+                            });
+                            this.setConnection(newConnection);
+                            await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+                        }
+                    }
+                }
+            }
+
+            if (!this.connection || this.connection.state.status !== VoiceConnectionStatus.Ready) {
+                throw new Error('Impossible d\'établir une connexion valide');
             }
 
             console.log('Création de la ressource audio pour:', this.currentItem.title);
@@ -264,26 +283,32 @@ export class MusicManager {
                 inlineVolume: true
             });
 
-            // S'assurer que la connexion est active
-            this.connection.subscribe(this.audioPlayer);
-            
-            // Jouer la ressource
-            this.audioPlayer.play(resource);
+            // S'assurer que la connexion est active et subscribe l'audioPlayer
+            if (this.connection && this.connection.state.status === VoiceConnectionStatus.Ready) {
+                this.connection.subscribe(this.audioPlayer);
+                this.audioPlayer.play(resource);
 
-            // Nettoyer le fichier après la lecture
-            this.audioPlayer.once(AudioPlayerStatus.Idle, async () => {
-                try {
-                    await fs.unlink(filename);
-                    console.log(`[Cleanup] Deleted file: ${filename}`);
-                } catch (error) {
-                    console.error('[Cleanup] Error deleting file:', error);
-                }
-            });
+                // Nettoyer le fichier après la lecture
+                this.audioPlayer.once(AudioPlayerStatus.Idle, async () => {
+                    try {
+                        await fs.unlink(filename);
+                        console.log(`[Cleanup] Deleted file: ${filename}`);
+                    } catch (error) {
+                        console.error('[Cleanup] Error deleting file:', error);
+                    }
+                });
+            } else {
+                throw new Error('La connexion a été perdue pendant la préparation de la lecture');
+            }
 
         } catch (error) {
             console.error('Erreur lors de la lecture:', error);
             await this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
-            this.playNext();
+            if (this.queue.length > 0) {
+                await this.playNext();
+            } else {
+                this.disconnect();
+            }
         }
     }
 

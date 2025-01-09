@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, GuildMember, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
 import youtubeDl from 'youtube-dl-exec';
-import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } from '@discordjs/voice';
+import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, entersState } from '@discordjs/voice';
 import { execSync } from 'child_process';
 import path from 'path';
 
@@ -105,16 +105,32 @@ export async function play(interaction: ChatInputCommandInteraction) {
         try {
             await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
+                    connection.destroy();
                     reject(new Error('Timeout en attendant la connexion'));
-                }, 5000);
+                }, 10000); // Augmenter le timeout à 10 secondes
 
                 connection.on(VoiceConnectionStatus.Ready, () => {
                     clearTimeout(timeout);
                     resolve(true);
                 });
 
+                connection.on(VoiceConnectionStatus.Disconnected, async () => {
+                    try {
+                        await Promise.race([
+                            entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+                        ]);
+                        // Connexion en cours de rétablissement
+                    } catch (error) {
+                        // La connexion ne peut pas se rétablir
+                        connection.destroy();
+                        reject(error);
+                    }
+                });
+
                 connection.on('error', (error) => {
                     clearTimeout(timeout);
+                    connection.destroy();
                     reject(error);
                 });
             });
@@ -122,7 +138,13 @@ export async function play(interaction: ChatInputCommandInteraction) {
             musicManager.setConnection(connection);
         } catch (error) {
             console.error('Erreur de connexion:', error);
-            throw new Error('Impossible de se connecter au canal vocal');
+            const embed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('❌ Erreur de connexion')
+                .setDescription('Impossible de se connecter au canal vocal. Réessayez dans quelques secondes.')
+                .setTimestamp();
+            await interaction.editReply({ embeds: [embed] });
+            return;
         }
 
         musicManager.addToQueue({

@@ -256,6 +256,7 @@ export class MusicManager {
             
             console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
             
+            const cookiesPath = path.join(process.cwd(), 'cookies.txt');
             await youtubeDl(this.currentItem.url, {
                 extractAudio: true,
                 audioFormat: 'mp3',
@@ -264,10 +265,10 @@ export class MusicManager {
                 noCheckCertificates: true,
                 noWarnings: true,
                 preferFreeFormats: true,
-                cookies: path.join(process.cwd(), 'cookies.txt'),
+                cookies: cookiesPath,
                 addHeader: [
                     'referer:youtube.com',
-                    'user-agent:Mozilla/5.0'
+                    'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                 ]
             });
 

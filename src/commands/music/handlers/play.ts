@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, GuildMember, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { musicManager } from '../../../managers/musicManager';
 import youtubeDl from 'youtube-dl-exec';
-import { joinVoiceChannel } from '@discordjs/voice';
+import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } from '@discordjs/voice';
 import { execSync } from 'child_process';
 import path from 'path';
 
@@ -82,48 +82,48 @@ export async function play(interaction: ChatInputCommandInteraction) {
         const info = await youtubeDl(url, {
             dumpJson: true,
             quiet: true,
-            format: 'bestaudio',
-            cookies: cookiesPath,
             noCheckCertificates: true,
             callHome: false,
-            extractAudio: true,
-            audioFormat: 'opus',
-            audioQuality: 0,
             addHeader: [
-                'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ],
-            output: '%(title)s.%(ext)s',
-            preferFreeFormats: true,
-            noWarnings: true,
-            bufferSize: '16K'
+                'referer:youtube.com',
+                'user-agent:Mozilla/5.0'
+            ]
         }) as any;
-
-        // Ajout de logs pour le débogage
-        console.log('Info reçue:', {
-            title: info.title,
-            duration: info.duration,
-            hasUrl: !!info.url,
-            hasFormats: !!info.formats
-        });
 
         let title = info.title || 'Unknown Title';
         let duration = info.duration || 0;
-        let audioUrl = info.url || info.formats?.[0]?.url;
 
-        if (!audioUrl) {
-            console.error('Pas d\'URL audio trouvée dans:', info);
-            throw new Error('Format audio invalide - URL manquante');
-        }
+        const connection = joinVoiceChannel({
+            channelId: voiceChannel.id,
+            guildId: interaction.guildId!,
+            adapterCreator: interaction.guild!.voiceAdapterCreator,
+            selfDeaf: true,
+        });
 
-        if (!musicManager.getCurrentVoiceChannel()) {
-            const connection = joinVoiceChannel({
-                channelId: voiceChannel.id,
-                guildId: interaction.guildId!,
-                adapterCreator: interaction.guild!.voiceAdapterCreator,
-                selfDeaf: true,
+        // S'assurer que la connexion est établie avant de continuer
+        try {
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout en attendant la connexion'));
+                }, 5000);
+
+                connection.on(VoiceConnectionStatus.Ready, () => {
+                    clearTimeout(timeout);
+                    resolve(true);
+                });
+
+                connection.on('error', (error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
             });
+
             musicManager.setConnection(connection);
+        } catch (error) {
+            console.error('Erreur de connexion:', error);
+            throw new Error('Impossible de se connecter au canal vocal');
         }
+
         musicManager.addToQueue({
             url,
             title,
@@ -131,8 +131,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             requestedBy: {
                 id: interaction.user.id,
                 username: interaction.user.username,
-            },
-            audioUrl: audioUrl as string
+            }
         });
 
         const embed = new EmbedBuilder()

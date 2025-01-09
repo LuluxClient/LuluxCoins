@@ -6,6 +6,7 @@ import path from 'path';
 import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
 import { execSync } from 'child_process';
+import { joinVoiceChannel } from '@discordjs/voice';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -219,50 +220,85 @@ export class MusicManager {
         }
         
         try {
-            const audioUrl = this.currentItem.audioUrl;
-            if (!audioUrl) {
-                throw new Error('No audio URL available');
-            }
-
             if (!this.connection || this.connection.state.status === 'destroyed') {
-                console.error('Connection perdue - impossible de jouer');
-                return;
-            }
-
-            // Vérifier que FFmpeg est disponible
-            try {
-                execSync('ffmpeg -version');
-            } catch (error) {
-                console.error('FFmpeg n\'est pas disponible:', error);
-                throw new Error('FFmpeg not available');
+                console.error('Connection perdue - tentative de reconnexion...');
+                if (this.client) {
+                    const channelId = this.connection?.joinConfig.channelId || this.getCurrentVoiceChannel()?.id;
+                    if (!channelId) {
+                        throw new Error('Impossible de retrouver le canal vocal');
+                    }
+                    const channel = await this.client.channels.fetch(channelId) as VoiceChannel;
+                    if (channel) {
+                        const newConnection = joinVoiceChannel({
+                            channelId: channel.id,
+                            guildId: channel.guild.id,
+                            adapterCreator: channel.guild.voiceAdapterCreator,
+                            selfDeaf: true
+                        });
+                        this.setConnection(newConnection);
+                    } else {
+                        throw new Error('Canal vocal introuvable');
+                    }
+                } else {
+                    throw new Error('Client Discord non initialisé');
+                }
             }
 
             console.log('Création de la ressource audio pour:', this.currentItem.title);
             
-            // Utiliser des options plus spécifiques pour FFmpeg
-            const resource = createAudioResource(audioUrl, {
-                inputType: StreamType.Arbitrary,
-                inlineVolume: true,
-                silencePaddingFrames: 5
+            // Télécharger la musique d'abord
+            const safeTitle = this.currentItem.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const soundsPath = path.join(process.cwd(), 'sounds');
+            const serverSoundsPath = path.join(soundsPath, 'music');
+            await fs.mkdir(serverSoundsPath, { recursive: true });
+            
+            const filename = path.join(serverSoundsPath, `${safeTitle}.mp3`);
+            
+            console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
+            
+            await youtubeDl(this.currentItem.url, {
+                extractAudio: true,
+                audioFormat: 'mp3',
+                audioQuality: 0,
+                output: filename,
+                noCheckCertificates: true,
+                noWarnings: true,
+                preferFreeFormats: true,
+                cookies: path.join(process.cwd(), 'cookies.txt'),
+                addHeader: [
+                    'referer:youtube.com',
+                    'user-agent:Mozilla/5.0'
+                ]
+            });
+
+            // Créer la ressource audio à partir du fichier téléchargé
+            const resource = createAudioResource(filename, {
+                inlineVolume: true
             });
 
             // S'assurer que la connexion est active
+            if (!this.connection) {
+                throw new Error('Connection non disponible');
+            }
             this.connection.subscribe(this.audioPlayer);
             
-            // Réinitialiser l'état de lecture
-            this.isPlaying = false;
-            
-            // Démarrer la lecture
+            // Jouer la ressource
             this.audioPlayer.play(resource);
-            
-            console.log('Lecture démarrée avec succès');
+
+            // Nettoyer le fichier après la lecture
+            this.audioPlayer.once(AudioPlayerStatus.Idle, async () => {
+                try {
+                    await fs.unlink(filename);
+                    console.log(`[Cleanup] Deleted file: ${filename}`);
+                } catch (error) {
+                    console.error('[Cleanup] Error deleting file:', error);
+                }
+            });
 
         } catch (error) {
-            console.error('Erreur détaillée:', error);
-            this.isPlaying = false;
-            this.sendMessage('❌ Erreur de lecture. Passage à la suivante...');
-            // Attendre un peu avant de passer à la suivante
-            setTimeout(() => this.playNext(), 1000);
+            console.error('Erreur lors de la lecture:', error);
+            this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
+            this.playNext();
         }
     }
 
@@ -314,6 +350,16 @@ export class MusicManager {
         }
         this.connection = connection;
         this.isPlaying = false;
+        
+        // Ajouter des listeners pour gérer les états de la connexion
+        connection.on('stateChange', (oldState, newState) => {
+            console.log(`Connection state changed from ${oldState.status} to ${newState.status}`);
+            if (newState.status === 'disconnected' || newState.status === 'destroyed') {
+                this.disconnect();
+            }
+        });
+
+        // S'assurer que l'audioPlayer est connecté
         connection.subscribe(this.audioPlayer);
     }
 

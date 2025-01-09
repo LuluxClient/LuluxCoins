@@ -355,13 +355,16 @@ export class MusicManager {
         const currentConnection = this.connection;
         const hasNextSong = this.queue.length > 0;
 
-        // Si on n'a pas de prochaine chanson, on peut déconnecter
-        if (!hasNextSong) {
-            this.disconnect();
-            return;
-        }
-
         try {
+            // Arrêter la lecture actuelle
+            this.audioPlayer.stop();
+
+            // Si on n'a pas de prochaine chanson, on déconnecte
+            if (!hasNextSong) {
+                this.disconnect();
+                return;
+            }
+
             // Vérifier la connexion avant de continuer
             if (!currentConnection || currentConnection.state.status !== VoiceConnectionStatus.Ready) {
                 if (this.client && currentConnection?.joinConfig.channelId) {
@@ -373,21 +376,18 @@ export class MusicManager {
                             adapterCreator: channel.guild.voiceAdapterCreator,
                             selfDeaf: true
                         });
-                        this.setConnection(newConnection);
                         
-                        // Attendre que la connexion soit prête
+                        // Attendre que la connexion soit prête avant de continuer
                         await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+                        this.setConnection(newConnection);
                     }
                 }
             }
 
-            // Arrêter la lecture actuelle
-            this.audioPlayer.stop();
-
             // Passer à la prochaine chanson
-            if (hasNextSong) {
-                await this.playNext();
-            }
+            this.currentItem = this.queue.shift()!;
+            await this.playCurrentSong();
+
         } catch (error) {
             console.error('Erreur lors du skip:', error);
             const embed = new EmbedBuilder()
@@ -397,9 +397,10 @@ export class MusicManager {
                 .setTimestamp();
             await this.sendMessage(embed);
             
-            // En cas d'erreur, on essaie quand même de jouer la prochaine chanson si elle existe
-            if (hasNextSong) {
-                await this.playNext();
+            // En cas d'erreur, on essaie de récupérer
+            if (this.queue.length > 0) {
+                this.currentItem = this.queue.shift()!;
+                await this.playCurrentSong();
             } else {
                 this.disconnect();
             }
@@ -407,12 +408,10 @@ export class MusicManager {
     }
 
     setConnection(connection: VoiceConnection) {
-        // Ne pas détruire la connexion existante si elle est déjà détruite
         if (this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             this.connection.destroy();
         }
         this.connection = connection;
-        this.isPlaying = false;
         
         // Ajouter des listeners pour gérer les états de la connexion
         connection.on('stateChange', async (oldState, newState) => {
@@ -424,18 +423,18 @@ export class MusicManager {
                         entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
                         entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
                     ]);
-                    // Connexion en cours de rétablissement
                 } catch (error) {
-                    // La connexion ne peut pas se rétablir
-                    console.error('Impossible de rétablir la connexion:', error);
                     if (this.connection === connection) {
-                        this.disconnect();
+                        console.error('Impossible de rétablir la connexion:', error);
+                        // Ne pas déconnecter si on a encore des chansons dans la queue
+                        if (this.queue.length === 0) {
+                            this.disconnect();
+                        }
                     }
                 }
             } else if (newState.status === VoiceConnectionStatus.Destroyed) {
                 if (this.connection === connection) {
                     this.connection = null;
-                    this.isPlaying = false;
                 }
             }
         });

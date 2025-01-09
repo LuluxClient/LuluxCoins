@@ -27,6 +27,7 @@ export class MusicManager {
         this.audioPlayer = createAudioPlayer();
         this.setupEventListeners();
         this.loadBannedUsers();
+        this.cleanupDownloadFolder();
     }
 
     public setClient(client: Client) {
@@ -171,17 +172,28 @@ export class MusicManager {
         }
     }
 
-    clearQueue() {
+    async clearQueue() {
         const queueSize = this.queue.length;
         this.queue = [];
+        
+        // Nettoyer les fichiers téléchargés
+        const soundsPath = path.join(process.cwd(), 'sounds');
+        const serverSoundsPath = path.join(soundsPath, 'music');
+        try {
+            await fs.rm(serverSoundsPath, { recursive: true, force: true });
+            await fs.mkdir(serverSoundsPath, { recursive: true });
+            console.log('Fichiers de musique nettoyés avec succès');
+        } catch (error) {
+            console.error('Erreur lors du nettoyage des fichiers de musique:', error);
+        }
         
         const embed = new EmbedBuilder()
             .setColor('#00ff00')
             .setTitle('🗑️ File d\'attente vidée')
-            .setDescription(`${queueSize} musiques supprimées`)
+            .setDescription(`${queueSize} musiques supprimées et fichiers nettoyés`)
             .setTimestamp();
 
-        this.sendMessage(embed);
+        await this.sendMessage(embed);
     }
 
     setLoop(count: number) {
@@ -225,6 +237,7 @@ export class MusicManager {
             return;
         }
         
+        let filename = '';
         try {
             // Vérifier et recréer la connexion si nécessaire
             if (!this.connection || this.connection.state.status !== VoiceConnectionStatus.Ready) {
@@ -259,28 +272,34 @@ export class MusicManager {
             const serverSoundsPath = path.join(soundsPath, 'music');
             await fs.mkdir(serverSoundsPath, { recursive: true });
             
-            const filename = path.join(serverSoundsPath, `${safeTitle}.mp3`);
+            filename = path.join(serverSoundsPath, `${safeTitle}.mp3`);
             
             console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
             
+            // Options optimisées pour une qualité audio moyenne/haute
             await youtubeDl(this.currentItem.url, {
                 extractAudio: true,
                 audioFormat: 'mp3',
-                audioQuality: 0,
+                audioQuality: 2, // Qualité moyenne/haute (0-9, 0 étant la meilleure)
                 output: filename,
                 noCheckCertificates: true,
                 noWarnings: true,
                 preferFreeFormats: true,
+                maxFilesize: '100M', // Augmentation de la limite de taille du fichier
+                bufferSize: '8M', // Buffer plus grand pour un téléchargement plus rapide
                 cookies: path.join(process.cwd(), 'cookies.txt'),
                 addHeader: [
                     'referer:youtube.com',
                     'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-                ]
+                ],
+                format: 'bestaudio', // Utilise le meilleur format audio disponible
+                postprocessorArgs: '-ar 44100 -ac 2 -b:a 192k', // Arguments FFmpeg pour une meilleure qualité
             });
 
             // Créer la ressource audio à partir du fichier téléchargé
             const resource = createAudioResource(filename, {
-                inlineVolume: true
+                inlineVolume: true,
+                silencePaddingFrames: 0 // Désactive le padding de silence
             });
 
             // S'assurer que la connexion est active et subscribe l'audioPlayer
@@ -303,6 +322,15 @@ export class MusicManager {
 
         } catch (error) {
             console.error('Erreur lors de la lecture:', error);
+            // Nettoyer le fichier en cas d'erreur
+            if (filename) {
+                try {
+                    await fs.unlink(filename);
+                    console.log(`[Cleanup] Deleted file after error: ${filename}`);
+                } catch (cleanupError) {
+                    console.error('[Cleanup] Error deleting file after error:', cleanupError);
+                }
+            }
             await this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
             if (this.queue.length > 0) {
                 await this.playNext();
@@ -487,6 +515,24 @@ export class MusicManager {
 
     public sendChannelMessage(content: string | EmbedBuilder) {
         this.sendMessage(content);
+    }
+
+    private async cleanupDownloadFolder() {
+        const downloadDir = path.join(process.cwd(), 'downloads');
+        try {
+            // Vérifie si le dossier existe et crée-le si nécessaire
+            await fs.mkdir(downloadDir, { recursive: true });
+            
+            // Liste et supprime tous les fichiers
+            const files = await fs.readdir(downloadDir);
+            await Promise.all(files.map(file => 
+                fs.unlink(path.join(downloadDir, file))
+            ));
+            
+            console.log('Dossier de téléchargement nettoyé avec succès');
+        } catch (error) {
+            console.error('Erreur lors du nettoyage du dossier de téléchargement:', error);
+        }
     }
 }
 

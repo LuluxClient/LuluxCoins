@@ -94,7 +94,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
         let title = info.title || 'Unknown Title';
         let duration = info.duration || 0;
 
-        // Si une musique est déjà en cours, ajouter directement à la queue
+        // Si une musique est déjà en cours, ajouter directement à la queue sans toucher à la connexion
         if (musicManager.getQueueStatus().currentSong) {
             musicManager.addToQueue({
                 url,
@@ -120,7 +120,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
             return;
         }
 
-        // Si aucune musique n'est en cours, établir la connexion
+        // Seulement établir une nouvelle connexion si aucune musique n'est en cours
         const connection = joinVoiceChannel({
             channelId: voiceChannel.id,
             guildId: interaction.guildId!,
@@ -128,39 +128,10 @@ export async function play(interaction: ChatInputCommandInteraction) {
             selfDeaf: true,
         });
 
-        // S'assurer que la connexion est établie avant de continuer
         try {
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    connection.destroy();
-                    reject(new Error('Timeout en attendant la connexion'));
-                }, 10000);
-
-                connection.on(VoiceConnectionStatus.Ready, () => {
-                    clearTimeout(timeout);
-                    resolve(true);
-                });
-
-                connection.on(VoiceConnectionStatus.Disconnected, async () => {
-                    try {
-                        await Promise.race([
-                            entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-                            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
-                        ]);
-                    } catch (error) {
-                        connection.destroy();
-                        reject(error);
-                    }
-                });
-
-                connection.on('error', (error) => {
-                    clearTimeout(timeout);
-                    connection.destroy();
-                    reject(error);
-                });
-            });
-
+            await entersState(connection, VoiceConnectionStatus.Ready, 10_000);
             musicManager.setConnection(connection);
+            
             musicManager.addToQueue({
                 url,
                 title,
@@ -182,16 +153,15 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
-
         } catch (error) {
             console.error('Erreur de connexion:', error);
+            connection.destroy();
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('❌ Erreur de connexion')
                 .setDescription('Impossible de se connecter au canal vocal. Réessayez dans quelques secondes.')
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
-            return;
         }
 
     } catch (error: any) {

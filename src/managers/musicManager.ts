@@ -328,26 +328,56 @@ export class MusicManager {
         // Stocker l'état actuel avant le skip
         const wasPlaying = this.isPlaying;
         const currentConnection = this.connection;
+        const hasNextSong = this.queue.length > 0;
 
-        // Arrêter la lecture actuelle
-        this.audioPlayer.stop();
-
-        // Si on était en train de jouer et qu'on a une connexion
-        if (wasPlaying && currentConnection && currentConnection.state.status === VoiceConnectionStatus.Ready) {
-            try {
-                await this.playNext();
-            } catch (error) {
-                console.error('Erreur lors du skip:', error);
-                const embed = new EmbedBuilder()
-                    .setColor('#ff0000')
-                    .setTitle('❌ Erreur')
-                    .setDescription('Une erreur est survenue lors du skip.')
-                    .setTimestamp();
-                await this.sendMessage(embed);
-            }
-        } else {
-            // Si on n'a pas de connexion valide, on nettoie tout
+        // Si on n'a pas de prochaine chanson, on peut déconnecter
+        if (!hasNextSong) {
             this.disconnect();
+            return;
+        }
+
+        try {
+            // Vérifier la connexion avant de continuer
+            if (!currentConnection || currentConnection.state.status !== VoiceConnectionStatus.Ready) {
+                if (this.client && currentConnection?.joinConfig.channelId) {
+                    const channel = await this.client.channels.fetch(currentConnection.joinConfig.channelId) as VoiceChannel;
+                    if (channel) {
+                        const newConnection = joinVoiceChannel({
+                            channelId: channel.id,
+                            guildId: channel.guild.id,
+                            adapterCreator: channel.guild.voiceAdapterCreator,
+                            selfDeaf: true
+                        });
+                        this.setConnection(newConnection);
+                        
+                        // Attendre que la connexion soit prête
+                        await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+                    }
+                }
+            }
+
+            // Arrêter la lecture actuelle
+            this.audioPlayer.stop();
+
+            // Passer à la prochaine chanson
+            if (hasNextSong) {
+                await this.playNext();
+            }
+        } catch (error) {
+            console.error('Erreur lors du skip:', error);
+            const embed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('❌ Erreur')
+                .setDescription('Une erreur est survenue lors du skip.')
+                .setTimestamp();
+            await this.sendMessage(embed);
+            
+            // En cas d'erreur, on essaie quand même de jouer la prochaine chanson si elle existe
+            if (hasNextSong) {
+                await this.playNext();
+            } else {
+                this.disconnect();
+            }
         }
     }
 

@@ -39,12 +39,14 @@ export async function skip(interaction: ChatInputCommandInteraction) {
 
     const voteStatus = await musicManager.initiateSkipVote(interaction.user.id, voiceChannel);
     
+    // Répondre immédiatement à l'interaction
+    await interaction.deferReply({ ephemeral: true });
+    
     // Message ephemeral pour l'utilisateur
-    await interaction.reply({
+    await interaction.editReply({
         content: voteStatus.current >= voteStatus.required 
             ? '⏭️ Vote réussi !'
             : `🗳️ Vote enregistré (${voteStatus.current}/${voteStatus.required})`,
-        ephemeral: true
     });
 
     // Message dans le salon musical

@@ -356,11 +356,9 @@ export class MusicManager {
         const hasNextSong = this.queue.length > 0;
 
         try {
-            // Arrêter la lecture actuelle
-            this.audioPlayer.stop();
-
             // Si on n'a pas de prochaine chanson, on déconnecte
             if (!hasNextSong) {
+                this.audioPlayer.stop();
                 this.disconnect();
                 return;
             }
@@ -386,6 +384,11 @@ export class MusicManager {
 
             // Passer à la prochaine chanson
             this.currentItem = this.queue.shift()!;
+            
+            // Arrêter la lecture actuelle après avoir préparé la suivante
+            this.audioPlayer.stop();
+            
+            // Jouer la nouvelle chanson
             await this.playCurrentSong();
 
         } catch (error) {
@@ -429,6 +432,25 @@ export class MusicManager {
                         // Ne pas déconnecter si on a encore des chansons dans la queue
                         if (this.queue.length === 0) {
                             this.disconnect();
+                        } else {
+                            // Tenter de recréer une nouvelle connexion
+                            try {
+                                const channelId = connection.joinConfig.channelId;
+                                if (channelId && this.client) {
+                                    const channel = await this.client.channels.fetch(channelId) as VoiceChannel;
+                                    if (channel) {
+                                        const newConnection = joinVoiceChannel({
+                                            channelId: channel.id,
+                                            guildId: channel.guild.id,
+                                            adapterCreator: channel.guild.voiceAdapterCreator,
+                                            selfDeaf: true
+                                        });
+                                        this.setConnection(newConnection);
+                                    }
+                                }
+                            } catch (reconnectError) {
+                                console.error('Impossible de recréer la connexion:', reconnectError);
+                            }
                         }
                     }
                 }

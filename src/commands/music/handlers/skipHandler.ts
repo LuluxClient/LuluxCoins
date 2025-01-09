@@ -37,28 +37,33 @@ export async function skip(interaction: ChatInputCommandInteraction) {
         musicManager.setLoop(0);
     }
 
+    // Répondre immédiatement à l'interaction avant toute autre opération
+    await interaction.deferReply({ ephemeral: true });
+
     const voteStatus = await musicManager.initiateSkipVote(interaction.user.id, voiceChannel);
     
-    // Répondre immédiatement à l'interaction
-    await interaction.deferReply({ ephemeral: true });
-    
-    // Message ephemeral pour l'utilisateur
-    await interaction.editReply({
-        content: voteStatus.current >= voteStatus.required 
-            ? '⏭️ Vote réussi !'
-            : `🗳️ Vote enregistré (${voteStatus.current}/${voteStatus.required})`,
-    });
+    try {
+        // Message ephemeral pour l'utilisateur
+        await interaction.editReply({
+            content: voteStatus.current >= voteStatus.required 
+                ? '⏭️ Vote réussi !'
+                : `🗳️ Vote enregistré (${voteStatus.current}/${voteStatus.required})`,
+        });
 
-    // Message dans le salon musical
-    const embed = new EmbedBuilder()
-        .setColor(voteStatus.current >= voteStatus.required ? '#00ff00' : '#ffa500')
-        .setTitle(voteStatus.current >= voteStatus.required ? '⏭️ Skip' : '🗳️ Vote Skip')
-        .setDescription(
-            voteStatus.current >= voteStatus.required
-                ? 'Allez on skip cette merde'
-                : `Vote pour skip: ${voteStatus.current}/${voteStatus.required} votes requis`
-        )
-        .setTimestamp();
+        // Message dans le salon musical
+        const embed = new EmbedBuilder()
+            .setColor(voteStatus.current >= voteStatus.required ? '#00ff00' : '#ffa500')
+            .setTitle(voteStatus.current >= voteStatus.required ? '⏭️ Skip' : '🗳️ Vote Skip')
+            .setDescription(
+                voteStatus.current >= voteStatus.required
+                    ? 'Allez on skip cette merde'
+                    : `Vote pour skip: ${voteStatus.current}/${voteStatus.required} votes requis`
+            )
+            .setTimestamp();
 
-    musicManager.sendChannelMessage(embed);
+        musicManager.sendChannelMessage(embed);
+    } catch (error) {
+        console.error('Erreur lors de la réponse à l\'interaction:', error);
+        // On continue même si on ne peut pas répondre à l'interaction
+    }
 } 

@@ -98,10 +98,10 @@ export class MusicManager {
                     if (this.loopRemaining > 0) {
                         console.log('Mode répétition actif, répétitions restantes:', this.loopRemaining);
                         this.loopRemaining--;
-                        this.playCurrentSong();
+                        this.playCurrentSong().catch(console.error);
                     } else {
                         console.log('Passage à la chanson suivante');
-                        this.playNext();
+                        this.playNext().catch(console.error);
                     }
                 }
             }
@@ -116,15 +116,15 @@ export class MusicManager {
                         .setColor('#00ff00')
                         .setTitle('🎵 Lecture en cours')
                         .setDescription(`[${this.currentItem.title}](${this.currentItem.url})`);
-                    this.sendMessage(embed);
+                    this.sendMessage(embed).catch(console.error);
                 }
             }
         });
 
         this.audioPlayer.on('error', error => {
             console.error('Erreur AudioPlayer:', error);
-            this.sendMessage('❌ Une erreur est survenue pendant la lecture.');
-            this.playNext();
+            this.sendMessage('❌ Une erreur est survenue pendant la lecture.').catch(console.error);
+            this.playNext().catch(console.error);
         });
     }
 
@@ -354,6 +354,7 @@ export class MusicManager {
         const wasPlaying = this.isPlaying;
         const currentConnection = this.connection;
         const hasNextSong = this.queue.length > 0;
+        const nextSong = hasNextSong ? this.queue[0] : null;
 
         try {
             // Si on n'a pas de prochaine chanson, on déconnecte
@@ -385,7 +386,7 @@ export class MusicManager {
             // Passer à la prochaine chanson
             this.currentItem = this.queue.shift()!;
             
-            // Arrêter la lecture actuelle après avoir préparé la suivante
+            // Arrêter la lecture actuelle
             this.audioPlayer.stop();
             
             // Jouer la nouvelle chanson
@@ -400,9 +401,9 @@ export class MusicManager {
                 .setTimestamp();
             await this.sendMessage(embed);
             
-            // En cas d'erreur, on essaie de récupérer
-            if (this.queue.length > 0) {
-                this.currentItem = this.queue.shift()!;
+            // En cas d'erreur, restaurer l'état précédent si possible
+            if (nextSong) {
+                this.currentItem = nextSong;
                 await this.playCurrentSong();
             } else {
                 this.disconnect();

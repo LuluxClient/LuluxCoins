@@ -94,6 +94,33 @@ export async function play(interaction: ChatInputCommandInteraction) {
         let title = info.title || 'Unknown Title';
         let duration = info.duration || 0;
 
+        // Si une musique est déjà en cours, ajouter directement à la queue
+        if (musicManager.getQueueStatus().currentSong) {
+            musicManager.addToQueue({
+                url,
+                title,
+                duration: formatDuration(duration),
+                requestedBy: {
+                    id: interaction.user.id,
+                    username: interaction.user.username,
+                }
+            });
+
+            const embed = new EmbedBuilder()
+                .setColor('#00ff00')
+                .setTitle('✅ Musique ajoutée à la file d\'attente')
+                .setDescription(`[${title}](${url})`)
+                .addFields(
+                    { name: '⏱️ Durée', value: formatDuration(duration), inline: true },
+                    { name: '👤 Demandé par', value: interaction.user.username, inline: true },
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
+        // Si aucune musique n'est en cours, établir la connexion
         const connection = joinVoiceChannel({
             channelId: voiceChannel.id,
             guildId: interaction.guildId!,
@@ -107,7 +134,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
                 const timeout = setTimeout(() => {
                     connection.destroy();
                     reject(new Error('Timeout en attendant la connexion'));
-                }, 10000); // Augmenter le timeout à 10 secondes
+                }, 10000);
 
                 connection.on(VoiceConnectionStatus.Ready, () => {
                     clearTimeout(timeout);
@@ -120,9 +147,7 @@ export async function play(interaction: ChatInputCommandInteraction) {
                             entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
                             entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
                         ]);
-                        // Connexion en cours de rétablissement
                     } catch (error) {
-                        // La connexion ne peut pas se rétablir
                         connection.destroy();
                         reject(error);
                     }
@@ -136,6 +161,28 @@ export async function play(interaction: ChatInputCommandInteraction) {
             });
 
             musicManager.setConnection(connection);
+            musicManager.addToQueue({
+                url,
+                title,
+                duration: formatDuration(duration),
+                requestedBy: {
+                    id: interaction.user.id,
+                    username: interaction.user.username,
+                }
+            });
+
+            const embed = new EmbedBuilder()
+                .setColor('#00ff00')
+                .setTitle('✅ Musique ajoutée')
+                .setDescription(`[${title}](${url})`)
+                .addFields(
+                    { name: '⏱️ Durée', value: formatDuration(duration), inline: true },
+                    { name: '👤 Demandé par', value: interaction.user.username, inline: true },
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
             console.error('Erreur de connexion:', error);
             const embed = new EmbedBuilder()
@@ -146,28 +193,6 @@ export async function play(interaction: ChatInputCommandInteraction) {
             await interaction.editReply({ embeds: [embed] });
             return;
         }
-
-        musicManager.addToQueue({
-            url,
-            title,
-            duration: formatDuration(duration),
-            requestedBy: {
-                id: interaction.user.id,
-                username: interaction.user.username,
-            }
-        });
-
-        const embed = new EmbedBuilder()
-            .setColor('#00ff00')
-            .setTitle('✅ Musique ajoutée')
-            .setDescription(`[${title}](${url})`)
-            .addFields(
-                { name: '⏱️ Durée', value: formatDuration(duration), inline: true },
-                { name: '👤 Demandé par', value: interaction.user.username, inline: true },
-            )
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
 
     } catch (error: any) {
         console.error('Erreur lors de la lecture:', error);

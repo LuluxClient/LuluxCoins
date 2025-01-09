@@ -7,6 +7,8 @@ import { config } from '../config';
 import youtubeDl from 'youtube-dl-exec';
 import { execSync } from 'child_process';
 import { joinVoiceChannel } from '@discordjs/voice';
+import { entersState } from '@discordjs/voice';
+import { VoiceConnectionStatus } from '@discordjs/voice';
 
 export class MusicManager {
     private queue: QueueItem[] = [];
@@ -203,7 +205,11 @@ export class MusicManager {
                 .setDescription('Plus aucune musique dans la file d\'attente')
                 .setTimestamp();
 
-            this.sendMessage(embed);
+            await this.sendMessage(embed);
+            
+            // Déconnexion automatique quand la file est vide
+            console.log('Déconnexion automatique...');
+            this.disconnect();
             return;
         }
 
@@ -346,17 +352,36 @@ export class MusicManager {
     }
 
     setConnection(connection: VoiceConnection) {
-        if (this.connection) {
+        // Ne pas détruire la connexion existante si elle est déjà détruite
+        if (this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             this.connection.destroy();
         }
         this.connection = connection;
         this.isPlaying = false;
         
         // Ajouter des listeners pour gérer les états de la connexion
-        connection.on('stateChange', (oldState, newState) => {
+        connection.on('stateChange', async (oldState, newState) => {
             console.log(`Connection state changed from ${oldState.status} to ${newState.status}`);
-            if (newState.status === 'disconnected' || newState.status === 'destroyed') {
-                this.disconnect();
+            
+            if (newState.status === VoiceConnectionStatus.Disconnected) {
+                try {
+                    await Promise.race([
+                        entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                        entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+                    ]);
+                    // Connexion en cours de rétablissement
+                } catch (error) {
+                    // La connexion ne peut pas se rétablir
+                    console.error('Impossible de rétablir la connexion:', error);
+                    if (this.connection === connection) {
+                        this.disconnect();
+                    }
+                }
+            } else if (newState.status === VoiceConnectionStatus.Destroyed) {
+                if (this.connection === connection) {
+                    this.connection = null;
+                    this.isPlaying = false;
+                }
             }
         });
 
@@ -365,10 +390,10 @@ export class MusicManager {
     }
 
     disconnect() {
-        if (this.connection) {
+        if (this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             this.connection.destroy();
-            this.connection = null;
         }
+        this.connection = null;
         this.currentItem = null;
         this.queue = [];
         this.loopCount = 0;

@@ -242,8 +242,8 @@ export class MusicManager {
     }
 
     async playCurrentSong() {
-        if (!this.currentItem) {
-            console.log('Aucun item à jouer');
+        if (!this.currentItem || this.isPlaying) {
+            console.log('Aucun item à jouer ou lecture déjà en cours');
             return;
         }
         
@@ -286,6 +286,9 @@ export class MusicManager {
             
             console.log(`[Download] Starting download for "${this.currentItem.title}" from ${this.currentItem.url}`);
             
+            // Marquer comme en cours de lecture avant le téléchargement
+            this.isPlaying = true;
+
             // Options optimisées pour une qualité audio moyenne/haute
             await youtubeDl(this.currentItem.url, {
                 extractAudio: true,
@@ -389,8 +392,27 @@ export class MusicManager {
         }
 
         try {
+            // Sauvegarder le fichier actuel pour le nettoyage
+            const currentFile = path.join(
+                process.cwd(), 
+                'sounds', 
+                'music', 
+                `${this.currentItem.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.mp3`
+            );
+
             // Arrêter la lecture actuelle
             this.audioPlayer.stop();
+            this.isPlaying = false;
+
+            // Nettoyer le fichier actuel
+            try {
+                await fs.unlink(currentFile);
+                console.log(`[Cleanup] Deleted file: ${currentFile}`);
+            } catch (error: any) {
+                if (error.code !== 'ENOENT') {
+                    console.error('[Cleanup] Error deleting file:', error);
+                }
+            }
 
             // Vérifier s'il y a une prochaine chanson
             if (this.queue.length === 0) {

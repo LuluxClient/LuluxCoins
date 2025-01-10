@@ -353,7 +353,17 @@ export class MusicManager {
         }
     }
 
-    async initiateSkipVote(userId: string, voiceChannel: VoiceBasedChannel): Promise<SkipVoteStatus> {
+    async initiateSkipVote(userId: string, voiceChannel: VoiceBasedChannel, hasPermission: boolean = false): Promise<SkipVoteStatus> {
+        // Si l'utilisateur a les permissions, skip directement
+        if (hasPermission) {
+            await this.skip();
+            return {
+                required: 1,
+                current: 1,
+                voters: [userId]
+            };
+        }
+
         if (this.skipVotes.has(userId)) {
             return this.getSkipVoteStatus(voiceChannel);
         }
@@ -362,6 +372,8 @@ export class MusicManager {
         const status = this.getSkipVoteStatus(voiceChannel);
 
         if (status.current >= status.required) {
+            // Vider les votes avant de skip pour éviter les doubles appels
+            this.skipVotes.clear();
             await this.skip();
         }
 
@@ -370,7 +382,8 @@ export class MusicManager {
 
     private getSkipVoteStatus(voiceChannel: VoiceBasedChannel): SkipVoteStatus {
         const membersInChannel = voiceChannel.members.filter(member => !member.user.bot).size;
-        const requiredVotes = Math.ceil(membersInChannel * 0.5);
+        // Requiert 50% des membres du salon pour skip
+        const requiredVotes = Math.max(Math.ceil(membersInChannel * 0.5), 1);
         
         return {
             required: requiredVotes,
@@ -388,6 +401,12 @@ export class MusicManager {
                 .setTimestamp();
 
             await this.sendMessage(embed);
+            return;
+        }
+
+        // Éviter les skips multiples si déjà en cours de skip
+        if (!this.isPlaying) {
+            console.log('Skip déjà en cours, ignoré');
             return;
         }
 

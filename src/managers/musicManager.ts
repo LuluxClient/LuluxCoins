@@ -22,6 +22,7 @@ export class MusicManager {
     private skipVotes: Set<string> = new Set();
     private client: Client | null = null;
     private isPlaying: boolean = false;
+    private isSkipping: boolean = false;
 
     constructor() {
         this.audioPlayer = createAudioPlayer();
@@ -242,11 +243,23 @@ export class MusicManager {
     }
 
     async playCurrentSong() {
-        if (!this.currentItem || this.isPlaying) {
-            console.log('Aucun item à jouer ou lecture déjà en cours');
+        if (!this.currentItem) {
+            console.log('Aucun item à jouer');
+            return;
+        }
+
+        // Ne pas démarrer une nouvelle lecture si un skip est en cours
+        if (this.isSkipping) {
+            console.log('Skip en cours, attente...');
             return;
         }
         
+        // Ne pas démarrer une nouvelle lecture si déjà en cours
+        if (this.isPlaying) {
+            console.log('Lecture déjà en cours');
+            return;
+        }
+
         let filename = '';
         try {
             // Vérifier et recréer la connexion si nécessaire
@@ -417,13 +430,15 @@ export class MusicManager {
             return;
         }
 
-        // Éviter les skips multiples si déjà en cours de skip
-        if (!this.isPlaying) {
+        // Éviter les skips multiples avec un verrou
+        if (this.isSkipping) {
             console.log('Skip déjà en cours, ignoré');
             return;
         }
 
         try {
+            this.isSkipping = true;
+
             // Sauvegarder le fichier actuel pour le nettoyage
             const currentFile = path.join(
                 process.cwd(), 
@@ -478,6 +493,9 @@ export class MusicManager {
                 .setDescription('Une erreur est survenue lors du skip.')
                 .setTimestamp();
             await this.sendMessage(embed);
+        } finally {
+            // Toujours libérer le verrou à la fin
+            this.isSkipping = false;
         }
     }
 

@@ -167,7 +167,17 @@ export class MusicManager {
 
     addToQueue(item: QueueItem) {
         this.queue.push(item);
-        if (!this.currentItem) {
+        const embed = new EmbedBuilder()
+            .setColor('#00ff00')
+            .setTitle('🎵 Ajouté à la file d\'attente')
+            .setDescription(`[${item.title}](${item.url})`)
+            .setFooter({ text: `Position: ${this.queue.length}` })
+            .setTimestamp();
+
+        this.sendMessage(embed);
+
+        // Si rien n'est en cours de lecture, commencer la lecture
+        if (!this.currentItem && !this.isPlaying) {
             this.playNext();
         }
     }
@@ -378,45 +388,31 @@ export class MusicManager {
             return;
         }
 
-        // Stocker l'état actuel avant le skip
-        const wasPlaying = this.isPlaying;
-        const currentConnection = this.connection;
-        const hasNextSong = this.queue.length > 0;
-        const nextSong = hasNextSong ? this.queue[0] : null;
-
         try {
-            // Si on n'a pas de prochaine chanson, on déconnecte
-            if (!hasNextSong) {
-                this.audioPlayer.stop();
+            // Arrêter la lecture actuelle
+            this.audioPlayer.stop();
+
+            // Vérifier s'il y a une prochaine chanson
+            if (this.queue.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setColor('#ffa500')
+                    .setTitle('⏭️ Fin de la file d\'attente')
+                    .setDescription('Plus de musiques dans la file d\'attente')
+                    .setTimestamp();
+                await this.sendMessage(embed);
                 this.disconnect();
                 return;
             }
 
-            // Vérifier la connexion avant de continuer
-            if (!currentConnection || currentConnection.state.status !== VoiceConnectionStatus.Ready) {
-                if (this.client && currentConnection?.joinConfig.channelId) {
-                    const channel = await this.client.channels.fetch(currentConnection.joinConfig.channelId) as VoiceChannel;
-                    if (channel) {
-                        const newConnection = joinVoiceChannel({
-                            channelId: channel.id,
-                            guildId: channel.guild.id,
-                            adapterCreator: channel.guild.voiceAdapterCreator,
-                            selfDeaf: true
-                        });
-                        
-                        // Attendre que la connexion soit prête avant de continuer
-                        await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
-                        this.setConnection(newConnection);
-                    }
-                }
-            }
-
-            // Passer à la prochaine chanson
+            // Passer à la chanson suivante
             this.currentItem = this.queue.shift()!;
-            
-            // Arrêter la lecture actuelle
-            this.audioPlayer.stop();
-            
+            const embed = new EmbedBuilder()
+                .setColor('#00ff00')
+                .setTitle('⏭️ Musique suivante')
+                .setDescription(`Lecture de: ${this.currentItem.title}`)
+                .setTimestamp();
+            await this.sendMessage(embed);
+
             // Jouer la nouvelle chanson
             await this.playCurrentSong();
 
@@ -428,14 +424,6 @@ export class MusicManager {
                 .setDescription('Une erreur est survenue lors du skip.')
                 .setTimestamp();
             await this.sendMessage(embed);
-            
-            // En cas d'erreur, restaurer l'état précédent si possible
-            if (nextSong) {
-                this.currentItem = nextSong;
-                await this.playCurrentSong();
-            } else {
-                this.disconnect();
-            }
         }
     }
 

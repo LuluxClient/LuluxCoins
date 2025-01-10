@@ -381,8 +381,21 @@ export class MusicManager {
     }
 
     private getSkipVoteStatus(voiceChannel: VoiceBasedChannel): SkipVoteStatus {
-        const membersInChannel = voiceChannel.members.filter(member => !member.user.bot).size;
-        // Requiert 50% des membres du salon pour skip
+        // Filtrer les membres pour ne compter que les utilisateurs humains
+        const membersInChannel = voiceChannel.members
+            .filter(member => !member.user.bot)  // Exclure les bots
+            .size;
+
+        // Si seul un utilisateur humain est présent, ne requérir qu'un vote
+        if (membersInChannel === 1) {
+            return {
+                required: 1,
+                current: this.skipVotes.size,
+                voters: Array.from(this.skipVotes)
+            };
+        }
+
+        // Sinon, requérir 50% des membres humains pour skip
         const requiredVotes = Math.max(Math.ceil(membersInChannel * 0.5), 1);
         
         return {

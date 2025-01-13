@@ -17,4 +17,5 @@ export interface UserStatus {
 
 export interface StatusDatabase {
     users: UserStatus[];
+    messageEnabled: boolean;
 } 

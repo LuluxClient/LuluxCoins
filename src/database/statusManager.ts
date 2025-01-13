@@ -11,11 +11,15 @@ export class StatusManager {
     private targetUsername = 'Vendetta';
     private saveInterval: NodeJS.Timeout | null = null;
     private readonly SAVE_INTERVAL = 30000; // Sauvegarde toutes les 30 secondes
+    private messageEnabled: boolean = true;
 
     constructor() {
         this.dbPath = path.join(__dirname, 'status.json');
-        this.data = { users: [] };
-        this.webhook = new WebhookClient({ url: 'https://discord.com/api/webhooks/1317886430558683176/kvZVtcX4H_2CJAaSgUN6AsXjr2oLenAV5hVAN_wGjShDpFBqA5SVud2_of9IFWZPBXud' });
+        this.data = { users: [], messageEnabled: true };
+        if (!process.env.STATUS_WEBHOOK_URL) {
+            throw new Error('STATUS_WEBHOOK_URL is not defined in environment variables');
+        }
+        this.webhook = new WebhookClient({ url: process.env.STATUS_WEBHOOK_URL });
     }
 
     private formatDuration(seconds: number): string {
@@ -30,7 +34,12 @@ export class StatusManager {
     async init() {
         try {
             const fileContent = await fs.readFile(this.dbPath, 'utf-8');
-            this.data = JSON.parse(fileContent);
+            const parsedData = JSON.parse(fileContent) as Partial<StatusDatabase>;
+            this.data = {
+                users: parsedData.users || [],
+                messageEnabled: parsedData.messageEnabled ?? true
+            };
+            this.messageEnabled = this.data.messageEnabled;
         } catch {
             await this.save();
         }
@@ -117,6 +126,8 @@ export class StatusManager {
     }
 
     private async sendStatsWebhook(user: UserStatus, reason: string) {
+        if (!this.messageEnabled) return;
+
         const now = Date.now();
         const dailyOnline = this.formatDuration(user.dailyStats.online);
         const dailyOffline = this.formatDuration(user.dailyStats.offline);
@@ -309,6 +320,17 @@ export class StatusManager {
         }
         // Sauvegarde finale avant l'arrêt
         await this.save();
+    }
+
+    public toggleMessages(enabled: boolean): boolean {
+        this.messageEnabled = enabled;
+        this.data.messageEnabled = enabled;
+        this.save();
+        return this.messageEnabled;
+    }
+
+    public isMessagesEnabled(): boolean {
+        return this.messageEnabled;
     }
 }
 

@@ -11,18 +11,18 @@ export const data = new SlashCommandBuilder()
             .setRequired(false)
     );
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const toggleOption = interaction.options.getBoolean('notifications');
     
-    // Si l'option est fournie, on vérifie les permissions et on toggle
     if (toggleOption !== null) {
         const staffRoleId = process.env.STAFF_ROLE_ID;
         const member = interaction.member as GuildMember;
         if (!staffRoleId || !member || !member.roles.cache.has(staffRoleId)) {
-            return interaction.reply({
+            await interaction.reply({
                 content: '❌ Vous n\'avez pas la permission de modifier les notifications.',
                 ephemeral: true
             });
+            return;
         }
 
         statusManager.toggleMessages(toggleOption);
@@ -33,7 +33,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    // Sinon on affiche les stats comme avant
     const stats = await statusManager.getStats();
     
     if (!stats) {

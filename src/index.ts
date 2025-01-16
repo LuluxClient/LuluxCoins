@@ -17,7 +17,6 @@ import * as music from './commands/music';
 import * as triggerwords from './commands/triggerwords';
 import * as game from './commands/game';
 import * as gamestats from './commands/gamestats';
-import * as trolls from './commands/trolls';
 import { musicManager } from './managers/musicManager';
 import { extractYoutubeCookies } from './utils/cookieExtractor';
 import { GameInteractionHandler } from './games/handlers/GameInteractionHandler';
@@ -26,11 +25,6 @@ import { initTicTacToeManager } from './games/tictactoe/TicTacToeManager';
 import { initConnect4Manager } from './games/connect4/Connect4Manager';
 import { initBlackjackManager } from './games/blackjack/BlackjackManager';
 import { replayManager } from './games/common/managers/ReplayManager';
-import { trollStateManager } from './automation/TrollState';
-import { AutomationManager } from './automation/AutomationManager';
-import { forcedNicknameManager } from './automation/ForcedNicknameManager';
-import { channelNameManager } from './automation/ChannelNameManager';
-import { trollConfig } from './automation/config/troll.config';
 
 const client = new Client({
     intents: [
@@ -46,12 +40,10 @@ const client = new Client({
 const commands = new Collection<string, { execute: (interaction: ChatInputCommandInteraction) => Promise<void> }>();
 [
     balance, leaderboard, economy, shop, history, initusers, 
-    vendesleep, roux, music, triggerwords, game, gamestats, trolls
+    vendesleep, roux, music, triggerwords, game, gamestats
 ].forEach(command => {
     commands.set(command.data.name, command);
 });
-
-const automationManager = AutomationManager.getInstance(config.openaiApiKey);
 
 client.once(Events.ClientReady, async () => {
     console.log('Bot is ready!');
@@ -75,13 +67,11 @@ client.once(Events.ClientReady, async () => {
     await db.init();
     await backupManager.init();
     await statusManager.init();
-    await trollStateManager.init();
     harassmentManager.setClient(client);
     await harassmentManager.init();
     backupManager.scheduleBackups();
     
     musicManager.setClient(client);
-    forcedNicknameManager.setClient(client);
     
     try {
         const musicChannel = await client.channels.fetch('1320439761873272844') as TextChannel;
@@ -106,14 +96,7 @@ client.once(Events.ClientReady, async () => {
 
     console.log('Game managers initialized successfully');
 
-    channelNameManager.setClient(client);
-    console.log('Channel name manager initialized successfully');
 
-    // Initialize AutomationManager
-    const automationManager = AutomationManager.getInstance(config.openaiApiKey);
-    automationManager.setClient(client);
-    await automationManager.init();
-    console.log('Automation manager initialized successfully');
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -151,7 +134,7 @@ client.on(Events.GuildMemberAdd, async member => {
     await db.registerUser(member.id, member.user.username);
 });
 
-client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
+client.on(Events.PresenceUpdate, async (newPresence) => {
     if (!newPresence || !newPresence.user) return;
     
     const isOnline = ['online', 'dnd'].includes(newPresence.status);
@@ -164,79 +147,9 @@ client.on(Events.PresenceUpdate, async (oldPresence, newPresence) => {
     }
 });
 
-client.on(Events.MessageCreate, async message => {
-    await politicsManager.handleMessage(message);
-
-    if (message.channelId === '1179886753461571644' && message.author.id === '295515087731556362') {
-        if (message.content.toLowerCase() === '!restore') {
-            await message.reply('🔄 Restauration des noms de salons en cours...');
-            await channelNameManager.restoreAllChannels();
-            await message.reply('✅ Noms des salons restaurés !');
-            return;
-        }
-    }
-
-    if (trollStateManager.isEnabled() && !message.author.bot) {
-        await automationManager.handleMessage(message);
-    }
-});
-
-// Suivi du temps vocal
-client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-    if (!oldState.channelId && newState.channelId) {
-        // Connexion vocale
-        const context = automationManager.getUserContext(newState.member!.id) || {
-            userId: newState.member!.id,
-            lastTrollTime: 0,
-            voiceTime: 0,
-            messageCount: 0,
-            lastActivity: new Date(),
-            baseChance: trollConfig.global.startingChance,
-            lastMessageTime: 0,
-            lastVoiceJoin: Date.now(),
-            activityStreak: 0
-        };
-        context.lastVoiceJoin = Date.now();
-        context.lastActivity = new Date();
-        await automationManager.saveUserContext(context);
-    } else if (oldState.channelId && !newState.channelId) {
-        // Déconnexion vocale
-        const context = automationManager.getUserContext(oldState.member!.id);
-        if (context?.lastVoiceJoin) {
-            context.voiceTime += Date.now() - context.lastVoiceJoin;
-            context.lastVoiceJoin = 0;
-            await automationManager.saveUserContext(context);
-        }
-    }
-});
-
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    if (oldMember.nickname !== newMember.nickname && forcedNicknameManager.isForced(newMember.id)) {
-        console.log(`${newMember.user.tag} a essayé de changer son surnom forcé`);
-        await forcedNicknameManager.checkAndReset(newMember);
-    }
-});
 
 client.login(config.token);
 
-process.on('SIGINT', async () => {
-    console.log('\nReçu SIGINT (Ctrl+C).');
-    
-    // Vérifier si des salons ont été renommés avant de tenter la restauration
-    const hasRenamedChannels = Array.from(channelNameManager.getActiveChannels().values()).length > 0;
-    
-    if (hasRenamedChannels) {
-        console.log('Restauration des salons en cours...');
-        try {
-            await channelNameManager.restoreAllChannels(false); // false pour ne pas envoyer de message
-            console.log('Restauration des salons terminée.');
-        } catch (error) {
-            console.error('Erreur lors de la restauration des salons:', error);
-        }
-    }
-    
-    process.exit(0);
-});
 
 process.on('SIGTERM', async () => {
     console.log('Arrêt du bot...');

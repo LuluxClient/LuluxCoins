@@ -1,9 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { db } from '../database/databaseManager';
 import { config } from '../config';
-import { AutomationManager } from '../automation/AutomationManager';
 
-const automationManager = AutomationManager.getInstance(config.openaiApiKey);
 
 export const data = new SlashCommandBuilder()
     .setName('balance')
@@ -45,18 +43,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 inline: true
             }
         ]);
-
-    try {
-        const trollChanceStr = automationManager.formatTrollChance(member);
-        embed.addFields({
-            name: '🎭 Chance de Troll',
-            value: trollChanceStr,
-            inline: true
-        });
-    } catch (error) {
-        console.error('Erreur lors de la récupération des chances de troll:', error);
-        // Continue sans afficher les chances de troll
-    }
 
     embed.setTimestamp();
     await interaction.reply({ embeds: [embed], ephemeral: true });
